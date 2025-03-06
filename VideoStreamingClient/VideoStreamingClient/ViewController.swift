@@ -18,16 +18,19 @@ class ViewController: UIViewController {
     }
 
     @IBAction func startButtonTapped(_: UIButton) {
-        //guard let ipAddress = addressTextFiled.text else { return }
-        let ipAddress = "192.168.5.243"
+        let defaultIPAddress = "192.168.5.243"
+        
+        let ipAddress = addressTextFiled.text?.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        let finalIPAddress = (ipAddress?.isEmpty ?? true) ? defaultIPAddress : ipAddress!
         
         do {
-            try videoClient.connect(to: ipAddress, with: 12005)
-            try imuClient.connect(to: ipAddress, with: 13005)
+            try videoClient.connect(to: finalIPAddress, with: 12005)
+            try imuClient.connect(to: finalIPAddress, with: 13005)
             try videoClient.startSendingVideoToServer()
             try imuClient.startIMUStreaming()
         } catch {
-            print("error occured : \(error.localizedDescription)")
+            print("Error occurred: \(error.localizedDescription)")
         }
     }
 }
