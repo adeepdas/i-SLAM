@@ -14,6 +14,10 @@ VIDEO_PORT = 12005
 IMU_PORT = 13005
 HOST = '0.0.0.0'  # Listen on all interfaces
 
+def get_local_ip():
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.connect(("8.8.8.8", 80))  # Connect to an external server
+        return s.getsockname()[0]   # Get the local IP
 
 def extract_packet(buffer):
     """
@@ -129,6 +133,10 @@ def receive_imu_data(host, port):
 
 
 if __name__ == "__main__":
+    # get ip address
+    ip_address = get_local_ip()
+    print(f"Server IP address: {ip_address}")
+    
     # Create threads for video & IMU reception
     video_thread = threading.Thread(target=receive_h264_video, args=(HOST, VIDEO_PORT))
     imu_thread = threading.Thread(target=receive_imu_data, args=(HOST, IMU_PORT))
