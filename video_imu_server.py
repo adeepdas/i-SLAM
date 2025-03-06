@@ -8,6 +8,8 @@ import threading
 START_MARKER = b'\xAB\xCD\xEF\x01'  # 4-byte unique identifier
 HEADER_SIZE = 16  # 4 (marker) + 8 (timestamp) + 4 (frame size)
 
+IMU_PACKET_SIZE = 212 # 4 (marker) + 8 (timestamp) + 200 (data)
+
 
 # Server Config
 VIDEO_PORT = 12005
@@ -113,16 +115,34 @@ def receive_imu_data(host, port):
 
     try:
         while True:
-            data_in = connection.recv(116)
+            data_in = connection.recv(IMU_PACKET_SIZE)
             if not data_in:
                 break
-            if len(data_in) == 116:
+            print(f"Received {len(data_in)} bytes of IMU data")
+            if len(data_in) == IMU_PACKET_SIZE:
                 # Extract data
-                timestamp, ax, ay, az, gx, gy, gz, mx, my, mz, qx, qy, qz, qw = struct.unpack("dddddddddddddd", data_in[4:])
-                # Print the data in a nice table format
-                print(f"{'Timestamp':<15}{'Ax':<10}{'Ay':<10}{'Az':<10}{'Gx':<10}{'Gy':<10}{'Gz':<10}{'Mx':<10}{'My':<10}{'Mz':<10}{'Qx':<10}{'Qy':<10}{'Qz':<10}{'Qw':<10}")
-                print(f"{timestamp:<15.6f}{ax:<10.6f}{ay:<10.6f}{az:<10.6f}{gx:<10.6f}{gy:<10.6f}{gz:<10.6f}{mx:<10.3f}{my:<10.3f}{mz:<10.3f}{qx:<10.6f}{qy:<10.6f}{qz:<10.6f}{qw:<10.6f}")
+                timestamp, r_ax, r_ay, r_az, r_gx, r_gy, r_gz, r_mx, r_my, r_mz, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z, yaw, pitch, roll, quat_x, quat_y, quat_z, quat_w = struct.unpack("dddddddddddddddddddddddddd", data_in[4:])
                 
+                print("IMU Data: @", timestamp)
+                print("Raw Data:")
+                print(f"{'Ax':<10}{'Ay':<10}{'Az':<10}{'Gx':<10}{'Gy':<10}{'Gz':<10}{'Mx':<10}{'My':<10}{'Mz':<10}")
+                print(f"{r_ax:<10.6f}{r_ay:<10.6f}{r_az:<10.6f}{r_gx:<10.6f}{r_gy:<10.6f}{r_gz:<10.6f}{r_mx:<10.3f}{r_my:<10.3f}{r_mz:<10.3f}")
+                print("\n")
+
+                print("Processed Data:")
+                print(f"{'Acc_X':<10}{'Acc_Y':<10}{'Acc_Z':<10}{'Gyro_X':<10}{'Gyro_Y':<10}{'Gyro_Z':<10}{'Mag_X':<10}{'Mag_Y':<10}{'Mag_Z':<10}")
+                print(f"{acc_x:<10.6f}{acc_y:<10.6f}{acc_z:<10.6f}{gyro_x:<10.6f}{gyro_y:<10.6f}{gyro_z:<10.6f}{mag_x:<10.3f}{mag_y:<10.3f}{mag_z:<10.3f}")
+                print("\n")
+
+                print("Euler Angles:")
+                print(f"{'Yaw':<10}{'Pitch':<10}{'Roll':<10}")
+                print(f"{yaw:<10.6f}{pitch:<10.6f}{roll:<10.6f}")
+                print("\n")
+
+                print("Quaternion:")
+                print(f"{'Qx':<10}{'Qy':<10}{'Qz':<10}{'Qw':<10}")
+                print(f"{quat_x:<10.6f}{quat_y:<10.6f}{quat_z:<10.6f}{quat_w:<10.6f}")
+                print("\n")
 
     except Exception as e:
         print(f"Error: {e}")
