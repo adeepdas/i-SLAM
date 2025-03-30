@@ -1,23 +1,6 @@
 import numpy as np
+from iSLAM.utils import skew
 
-
-# --- Helper Functions for 3D Integration ---
-
-def hat(vec):
-    """
-    Converts a 3-vector into a 3x3 skew-symmetric matrix.
-    
-    Args:
-        vec (np.ndarray): vector of shape (3,)
-    
-    Returns:
-        hat (np.ndarray): matrix of shape (3, 3)
-    """
-    return np.array([
-        [0,      -vec[2], vec[1]],
-        [vec[2],  0,     -vec[0]],
-        [-vec[1], vec[0],  0]
-    ])
 
 def Gamma0(phi):
     """
@@ -30,7 +13,7 @@ def Gamma0(phi):
         Gamma0 (np.ndarray): matrix of shape (3, 3)
     """
     theta = np.linalg.norm(phi)
-    phi_hat = hat(phi)
+    phi_hat = skew(phi)
     if theta < 1e-8:
         # Use second-order Taylor expansion for small angles:
         return np.eye(3) + phi_hat + 0.5 * (phi_hat @ phi_hat)
@@ -50,7 +33,7 @@ def Gamma1(phi):
         Gamma1 (np.ndarray): matrix of shape (3, 3)
     """
     theta = np.linalg.norm(phi)
-    phi_hat = hat(phi)
+    phi_hat = skew(phi)
     if theta < 1e-8:
         # Taylor expansion: Gamma1 = I + 0.5*hat(phi) + 1/6*(hat(phi))^2
         return np.eye(3) + 0.5 * phi_hat + (1/6) * (phi_hat @ phi_hat)
@@ -73,7 +56,7 @@ def Gamma2(phi):
         Gamma2 (np.ndarray): matrix of shape (3, 3)
     """
     theta = np.linalg.norm(phi)
-    phi_hat = hat(phi)
+    phi_hat = skew(phi)
     if theta < 1e-8:
         # Taylor expansion: Gamma2 = 0.5*I + 1/6*hat(phi) + 1/24*(hat(phi))^2
         return 0.5 * np.eye(3) + (1/6) * phi_hat + (1/24) * (phi_hat @ phi_hat)

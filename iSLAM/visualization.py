@@ -2,6 +2,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from iSLAM.utils import skew
 import iSLAM.imu_integration as ii
 
 
@@ -24,22 +25,22 @@ def simulate_square(dt=0.01, v_const=1.0, L=2.0, T_turn=1.0):
         (T_straight, np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])),
         # Segment 2: Turn 90° counterclockwise
         (T_turn, np.array([0.0, 0.0, w_turn]), 
-         ii.hat(np.array([0.0, 0.0, w_turn])) @ np.array([v_const, 0.0, 0.0])),
+         skew(np.array([0.0, 0.0, w_turn])) @ np.array([v_const, 0.0, 0.0])),
         # Segment 3: Straight
         (T_straight, np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])),
         # Segment 4: Turn 90°
         (T_turn, np.array([0.0, 0.0, w_turn]), 
-         ii.hat(np.array([0.0, 0.0, w_turn])) @ np.array([v_const, 0.0, 0.0])),
+         skew(np.array([0.0, 0.0, w_turn])) @ np.array([v_const, 0.0, 0.0])),
         # Segment 5: Straight
         (T_straight, np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])),
         # Segment 6: Turn 90°
         (T_turn, np.array([0.0, 0.0, w_turn]), 
-         ii.hat(np.array([0.0, 0.0, w_turn])) @ np.array([v_const, 0.0, 0.0])),
+         skew(np.array([0.0, 0.0, w_turn])) @ np.array([v_const, 0.0, 0.0])),
         # Segment 7: Straight
         (T_straight, np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])),
         # Segment 8: Turn 90° to return to original heading
         (T_turn, np.array([0.0, 0.0, w_turn]), 
-         ii.hat(np.array([0.0, 0.0, w_turn])) @ np.array([v_const, 0.0, 0.0])),
+         skew(np.array([0.0, 0.0, w_turn])) @ np.array([v_const, 0.0, 0.0])),
     ]
     
     # --- Initial State ---
