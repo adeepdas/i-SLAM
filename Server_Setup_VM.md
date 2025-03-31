@@ -4,9 +4,17 @@ This repository provides a Python binding for H.264 decoding using FFmpeg and py
 
 ## Installation Instructions
 
-### **1. Install Dependencies**
+### **1. Configure Network in VirtualBox**
 
-Ensure you have the required dependencies installed:
+To ensure network connectivity in your VM, follow these steps:
+
+1. Open **VirtualBox** settings.
+2. Navigate to **Network** settings.
+3. Set **Attached to:** `Bridged Adapter` to enable direct network access.
+
+### **2. Install Required Dependencies**
+
+Ensure your system has all necessary dependencies installed:
 
 ```sh
 sudo apt update
@@ -15,14 +23,16 @@ sudo apt install -y cmake python3 python3-dev python3-pip \
                     build-essential
 ```
 
-### **2. Clone the Repository**
+### **3. Clone the Repository**
+
+Download and enter the repository:
 
 ```sh
 git clone https://github.com/DaWelter/h264decoder.git
 cd h264decoder
 ```
 
-### **3. Build the Project**
+### **4. Build and Install the Project**
 
 Use `pip` to install the package:
 
@@ -30,12 +40,6 @@ Use `pip` to install the package:
 pip install setuptools wheel
 pip install .
 ```
-
-### 4. Network Config in Virtual Box
-
-1. Go Virtual Box settings
-2. Go to Network
-   1. Set Attached to: Bridged Adapter
 
 ---
 
