@@ -6,6 +6,8 @@ from iSLAM.utils import skew
 import iSLAM.imu_integration as ii
 
 
+G = 9.8
+
 def simulate_square(dt=0.01, v_const=1.0, L=2.0, T_turn=1.0):
     """
     Simulate a square trajectory using the 3D IMU integration model
@@ -88,7 +90,7 @@ def create_plot(R, p, frame_idx, arrow_handle):
     # Extract the forward direction (body x-axis) and project onto the horizontal plane.
     forward = R[:, 0]
     forward_xy = forward[:2]
-    yaw = np.arctan2(forward_xy[1], forward_xy[0])
+    yaw = np.arctan2(forward_xy[1], forward_xy[0]) + np.pi / 2
     
     # Plot a new arrow representing the orientation.
     arrow_handle[0] = plt.arrow(p[0], p[1],
@@ -132,6 +134,83 @@ def animate_trajectory(orientations, positions, interval=20):
     plt.show()
     return ani
 
+def read_imu_data(file_path):
+    """
+    Read IMU data from a file with format:
+    timestamp, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z
+    
+    Args:
+        file_path (str): Path to the IMU data file
+        
+    Returns:
+        timestamps (np.ndarray): Array of timestamps
+        acc_data (np.ndarray): Array of shape (N, 3) containing accelerometer data
+        gyro_data (np.ndarray): Array of shape (N, 3) containing gyroscope data
+    """
+    data = np.genfromtxt(file_path, delimiter=',', skip_header=1)
+    timestamps = data[:, 0]
+    acc_data = -data[:, 1:4] * G
+    gyro_data = data[:, 4:7]
+    return timestamps, acc_data, gyro_data
+
+def integrate_imu_trajectory(file_path, g=np.array([0, 0, -G]), R_init=np.eye(3)):
+    """
+    Integrate IMU data to get trajectory.
+    
+    Args:
+        file_path (str): Path to the IMU data file
+        g (np.ndarray): Gravity vector in world frame
+        
+    Returns:
+        positions (np.ndarray): Array of shape (N, 3) containing the 3D positions
+        orientations (list): List of 3x3 rotation matrices at each time step
+    """
+    # Read IMU data
+    timestamps, acc_data, gyro_data = read_imu_data(file_path)
+    
+    # Initialize state
+    R = R_init  # Initial orientation
+    v = np.zeros(3)  # Initial velocity
+    p = np.zeros(3)  # Initial position
+    
+    positions = [p.copy()]
+    orientations = [R.copy()]
+    
+    # Integration loop
+    for i in range(1, len(timestamps)):
+        # Calculate dt from timestamps
+        dt = timestamps[i] - timestamps[i-1]
+        
+        # Get IMU measurements
+        omega = gyro_data[i-1]  # Angular velocity
+        acc = acc_data[i-1]     # Linear acceleration
+        
+        # Integrate state
+        R, v, p = ii.integrate_imu_state(R, v, p, omega, acc, dt, g)
+        
+        # Store results
+        positions.append(p.copy())
+        orientations.append(R.copy())
+    
+    return np.array(positions), orientations
+
 if __name__ == "__main__":
-    positions, orientations = simulate_square(dt=0.05)
+    # Path to IMU data file
+    imu_file = "data/imu_data.csv"
+    
+    # Check if file exists
+    if not os.path.exists(imu_file):
+        print(f"Error: File {imu_file} not found. Falling back to simulated data.")
+        positions, orientations = simulate_square(dt=0.05)
+    else:
+        # Integrate IMU data to get trajectory
+        # ASSUME that identity at normal iPhone configuration
+        # R_init = np.array([[0, 1, 0], 
+        #                    [-1, 0, 0], 
+        #                    [0, 0, 1]])
+        R_init = np.eye(3)
+        positions, orientations = integrate_imu_trajectory(imu_file, g=np.zeros(3), R_init=R_init)
+        print(f"Integrated trajectory from {len(positions)} IMU measurements")
+    
+    # Animate the trajectory
     ani = animate_trajectory(orientations, positions, interval=20)
