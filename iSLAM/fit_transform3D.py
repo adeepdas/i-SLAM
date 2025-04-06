@@ -19,7 +19,6 @@ def icp(P, Q, max_iter=10, tol=1e-6):
         R (np.ndarray): Rotation matrix of shape (3, 3)
         t (np.ndarray): Translation vector of shape (3,)
     """
-    assert P.shape == Q.shape
     N = P.shape[0]
     T = np.eye(4)
 
@@ -87,6 +86,19 @@ def svd_registration(P, Q):
     return R, t
 
 def ransac(P, Q, optim_method="svd", threshold=0.05, max_iterations=1000):    
+    """
+    Estimate SE(3) transformation using RANSAC
+
+    Args:
+        P (np.ndarray): Source points of shape (N, 3)
+        Q (np.ndarray): Target points of shape (N, 3)
+        optim_method (str): Optimization method, either "svd" or "icp"
+        threshold (float): Inlier threshold
+        max_iterations (int): Maximum number of iterations
+
+    Returns:
+        T (np.ndarray): SE(3) transformation matrix of shape (4, 4)
+    """
     # threshold needs to be tuned to get best fit
     inliers_count_best = 0
     inliers_best = None
@@ -168,9 +180,7 @@ if __name__ == "__main__":
     t_true = np.random.uniform(-0.5, 0.5, 3)
     
     # Create SE(3) transformation matrix
-    T_true = np.eye(4)
-    T_true[:3, :3] = R_true
-    T_true[:3, 3] = t_true
+    T_true = to_transform(R_true, t_true)
     
     # Apply transformation to get source points
     source_points_clean = transform(T_true, cube_corners)

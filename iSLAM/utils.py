@@ -49,6 +49,16 @@ def transform(T, pts):
     return (T @ pts_h.T).T[:, :3]
 
 def to_transform(R, t):
+    """
+    Convert rotation matrix and translation vector to SE(3) matrix.
+
+    Args:
+        R (np.ndarray): rotation matrix of shape (3, 3)
+        t (np.ndarray): translation vector of shape (3,)
+
+    Returns:
+        T (np.ndarray): SE(3) matrix of shape (4, 4)
+    """
     T = np.eye(4)
     T[:3, :3] = R
     T[:3, 3] = t
