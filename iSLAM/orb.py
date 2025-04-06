@@ -17,19 +17,18 @@ def feature_extraction(rgb_img_P, rgb_img_Q):
     grayQ = cv2.cvtColor(rgb_img_Q, cv2.COLOR_RGB2GRAY)
 
     # Initiate ORB detector
-    orb = cv2.ORB_create()
+    orb = cv2.ORB_create(nfeatures=2000)
 
     # find the keypoints and descriptors with ORB
     kp1, des1 = orb.detectAndCompute(grayP, None)
     kp2, des2 = orb.detectAndCompute(grayQ, None)
 
     # FLANN parameters - CAN BE TUNED
-    FLANN_INDEX = 6
-    index_params = dict(algorithm = FLANN_INDEX, 
+    index_params = dict(algorithm = 6, # FLANN_INDEX_LSH
                         table_num = 12,
                         key_size = 12,
-                        multi_probe_level = 1)
-    search_params = dict(checks=50)  
+                        multi_probe_level = 2)
+    search_params = dict(checks=100)  
 
     flann = cv2.FlannBasedMatcher(index_params, search_params)
     matches = flann.knnMatch(des1, des2, k=2)
@@ -37,7 +36,7 @@ def feature_extraction(rgb_img_P, rgb_img_Q):
     goodMatchesP = []
     goodMatchesQ = []
     for m, n in matches:
-        if m.distance < 0.7 * n.distance:
+        if m.distance < 0.6 * n.distance:
             goodMatchesP.append(kp1[m.queryIdx].pt)
             goodMatchesQ.append(kp2[m.trainIdx].pt)
     print("P Img GoodMatches:\n", goodMatchesP)
@@ -67,8 +66,8 @@ def feature_extraction(rgb_img_P, rgb_img_Q):
 if __name__ == "__main__":
   
   # test if my bullshit works
-  img1 = cv2.imread('test_images/test1.jpg', cv2.IMREAD_COLOR)
-  img2 = cv2.imread('test_images/test2.jpg', cv2.IMREAD_COLOR)
+  img1 = cv2.imread('test_images/test51.jpg', cv2.IMREAD_COLOR)
+  img2 = cv2.imread('test_images/test52.jpg', cv2.IMREAD_COLOR)
 
   # Preform Feature Extraction
   img1_pts, img2_pts = feature_extraction(img1, img2)
