@@ -4,7 +4,9 @@ from iSLAM.utils import hat, skew, transform
 import matplotlib.pyplot as plt
 
 
-def estimate_pose(P, Q, max_iter=10, tol=1e-6):
+OPTIM_METHOD = "icp" # "icp" or "svd"
+
+def icp(P, Q, max_iter=10, tol=1e-6):
     """
     Estimate SE(3) transformation using Lie algebra optimization
     (Gauss-Newton with incremental accumulation)
@@ -56,6 +58,36 @@ def estimate_pose(P, Q, max_iter=10, tol=1e-6):
     t = T[:3, 3]
     return R, t
 
+def svd_registration(P, Q):
+    """
+    Estimate SE(3) transformation using SVD-based method
+
+    Args:
+        P (np.ndarray): Source points of shape (N, 3)
+        Q (np.ndarray): Target points of shape (N, 3)
+
+    Returns:
+        R (np.ndarray): Rotation matrix of shape (3, 3)
+        t (np.ndarray): Translation vector of shape (3,)
+    """
+    # compute centroids
+    P_centroid = np.mean(P, axis=0)
+    Q_centroid = np.mean(Q, axis=0)
+
+    # center points
+    P_centered = P - P_centroid
+    Q_centered = Q - Q_centroid
+
+    # covariance matrix
+    H = P_centered.T @ Q_centered
+
+    # optimize
+    U, _, Vt = np.linalg.svd(H)
+    R = Vt.T @ U.T
+    t = Q_centroid - R @ P_centroid
+
+    return R, t
+
 
 if __name__ == "__main__":
     # Generate a cube pointcloud (8 corners)
@@ -105,9 +137,12 @@ if __name__ == "__main__":
     source_points = source_points_clean + noise
     
     # Estimate pose using our algorithm
-    R_est, t_est = estimate_pose(source_points, cube_corners)
+    if OPTIM_METHOD == "icp":
+        R_est, t_est = icp(source_points, cube_corners)
+    else:
+        R_est, t_est = svd_registration(source_points, cube_corners)
     
-    # Create estimated transformation matrix
+    # Create estimated transformation matrixf
     T_est = np.eye(4)
     T_est[:3, :3] = R_est
     T_est[:3, 3] = t_est
