@@ -1,10 +1,8 @@
 import numpy as np
 from scipy.linalg import expm
-from iSLAM.utils import hat, skew, transform
+from iSLAM.utils import hat, skew, transform, to_transform
 import matplotlib.pyplot as plt
 
-
-OPTIM_METHOD = "icp" # "icp" or "svd"
 
 def icp(P, Q, max_iter=10, tol=1e-6):
     """
@@ -88,6 +86,52 @@ def svd_registration(P, Q):
 
     return R, t
 
+def ransac(P, Q, optim_method="svd", threshold=0.05, max_iterations=1000):    
+    # threshold needs to be tuned to get best fit
+    inliers_count_best = 0
+    inliers_best = None
+    
+    for _ in range(max_iterations):
+        # randomly select a subset of matches
+        sample_indices = np.random.choice(len(P), size=3, replace=False)
+
+        src_pts = P[sample_indices]
+        target_pts = Q[sample_indices]
+        
+        # estimate transformation using the sampled points
+        if optim_method == "svd":
+            R, t = svd_registration(src_pts, target_pts)
+        else:
+            R, t = icp(src_pts, target_pts)
+        T = to_transform(R, t)
+        
+        # apply the transformation to all keypoints in source frame
+        transformed_pts = transform(T, P)
+        
+        # calculate distances to keypoints in target frame
+        dist = np.linalg.norm(transformed_pts - Q, axis=1)
+        
+        # count inliers (points with distances below the threshold)
+        inliers = dist < threshold
+        inliers_count = np.sum(inliers)
+        
+        # update the best transform if the current one has more inliers
+        if inliers_count > inliers_count_best:
+            inliers_count_best = inliers_count
+            inliers_best = inliers
+    
+    # final fit
+    src_pts = P[inliers_best]
+    target_pts = Q[inliers_best]
+    if optim_method == "svd":
+        R, t = svd_registration(src_pts, target_pts)
+    else:
+        R, t = icp(src_pts, target_pts)
+    T = to_transform(R, t)
+    
+    return T
+
+
 
 if __name__ == "__main__":
     # Generate a cube pointcloud (8 corners)
@@ -136,25 +180,12 @@ if __name__ == "__main__":
     noise = np.random.normal(0, noise_level, source_points_clean.shape)
     source_points = source_points_clean + noise
     
-    # Estimate pose using our algorithm
-    if OPTIM_METHOD == "icp":
-        R_est, t_est = icp(source_points, cube_corners)
-    else:
-        R_est, t_est = svd_registration(source_points, cube_corners)
-    
-    # Create estimated transformation matrixf
-    T_est = np.eye(4)
-    T_est[:3, :3] = R_est
-    T_est[:3, 3] = t_est
-    
+    best_T = ransac(source_points, cube_corners, optim_method="svd")
+    print("Estimated Transformation Matrix:")
+    print(best_T)
+
     # Apply estimated transformation to source points
-    aligned_points = transform(T_est, source_points)
-    
-    # Print transformation errors
-    rot_error = np.linalg.norm(R_est @ R_true.T - np.eye(3), 'fro')
-    trans_error = np.linalg.norm(t_est - t_true)
-    print(f"Rotation error: {rot_error:.6f}")
-    print(f"Translation error: {trans_error:.6f}")
+    aligned_points = transform(best_T, source_points)
     
     # Visualize the results
     fig = plt.figure(figsize=(10, 8))
