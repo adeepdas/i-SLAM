@@ -47,3 +47,9 @@ def transform(T, pts):
     """
     pts_h = np.hstack((pts, np.ones((pts.shape[0], 1))))  # Nx4
     return (T @ pts_h.T).T[:, :3]
+
+def to_transform(R, t):
+    T = np.eye(4)
+    T[:3, :3] = R
+    T[:3, 3] = t
+    return T

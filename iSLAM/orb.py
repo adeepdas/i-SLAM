@@ -5,9 +5,8 @@ import cv2
 import random
 
 
-# ------ We are using RANSAC + ICP for the VO Model ------
-# ------ Essentially we are checking the transform two Point Clouds ------
-# ------ We are using the RANSAC algorithm to match the two Point Clouds and get the transform ------
+# ------ Do ORB Feature matching between two images ------
+# ------ Visualize 2 point cloiuds as well ------
 
 # TEST POINT CLOUDS
 POINT_ClOUD_A = [[9.297, 8.081, 6.334],
@@ -93,43 +92,44 @@ def feature_extraction(image1, image2):
     for m,n in matches:
         if m.distance < 0.7 * n.distance:
             goodMatches.append(m)
-
-    # Randomly extract 3 matched keypoints and print them to the terminal
-    three_random_points = {
-        'image_1': [],
-        'image_2': []
-    }
     
-    if len(goodMatches) > 0:
-        selected_matches = random.sample(goodMatches, min(3, len(goodMatches)))  # Select up to 3 matches
-        # print("Randomly Selected 3 Keypoints):")
-        for match in selected_matches:
-            pt1 = kp1[match.queryIdx].pt  # Coordinates in image1
-            three_random_points['image_1'].append(pt1)
-            pt2 = kp2[match.trainIdx].pt  # Coordinates in image2
-            three_random_points['image_2'].append(pt2)
-
-    # print(f"3 random Image1 pts: {three_random_points['image_1']}")
-    # print(f"3 random Image2 pts: {three_random_points['image_2']}")
-
-    # print(f"Total Number of Good Matches: {len(goodMatches)}")
-    # img_matches = cv2.drawMatches(img1, kp1, img2, kp2, goodMatches, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    return goodMatches, kp1, kp2
+    # # Randomly extract 3 matched keypoints and print them to the terminal
+    # three_random_points = {
+    #     'image_1': [],
+    #     'image_2': []
+    # }
     
-    # Create an output image to draw matches manually
-    img_matches = cv2.hconcat([img1, img2])  # Concatenate images side by side
+    # if len(goodMatches) > 0:
+    #     selected_matches = random.sample(goodMatches, min(3, len(goodMatches)))  # Select up to 3 matches
+    #     # print("Randomly Selected 3 Keypoints):")
+    #     for match in selected_matches:
+    #         pt1 = kp1[match.queryIdx].pt  # Coordinates in image1
+    #         three_random_points['image_1'].append(pt1)
+    #         pt2 = kp2[match.trainIdx].pt  # Coordinates in image2
+    #         three_random_points['image_2'].append(pt2)
 
-    # Draw matches with thicker lines
-    for match in goodMatches:
-        pt1 = tuple(map(int, kp1[match.queryIdx].pt))
-        pt2 = tuple(map(int, (kp2[match.trainIdx].pt[0] + img1.shape[1], kp2[match.trainIdx].pt[1])))
-        cv2.line(img_matches, pt1, pt2, (0, 255, 0), thickness=3)  # Adjust thickness here
+    # # print(f"3 random Image1 pts: {three_random_points['image_1']}")
+    # # print(f"3 random Image2 pts: {three_random_points['image_2']}")
 
-    # Display the matches
-    plt.figure(figsize=(12, 6))
-    plt.imshow(cv2.cvtColor(img_matches, cv2.COLOR_BGR2RGB))
-    plt.title("Feature Matches with Thicker Lines")
-    plt.show()
-    return three_random_points['image_1'], three_random_points['image_2']
+    # # print(f"Total Number of Good Matches: {len(goodMatches)}")
+    # # img_matches = cv2.drawMatches(img1, kp1, img2, kp2, goodMatches, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    
+    # # Create an output image to draw matches manually
+    # img_matches = cv2.hconcat([img1, img2])  # Concatenate images side by side
+
+    # # Draw matches with thicker lines
+    # for match in goodMatches:
+    #     pt1 = tuple(map(int, kp1[match.queryIdx].pt))
+    #     pt2 = tuple(map(int, (kp2[match.trainIdx].pt[0] + img1.shape[1], kp2[match.trainIdx].pt[1])))
+    #     cv2.line(img_matches, pt1, pt2, (0, 255, 0), thickness=3)  # Adjust thickness here
+
+    # # Display the matches
+    # plt.figure(figsize=(12, 6))
+    # plt.imshow(cv2.cvtColor(img_matches, cv2.COLOR_BGR2RGB))
+    # plt.title("Feature Matches with Thicker Lines")
+    # plt.show()
+    # return three_random_points['image_1'], three_random_points['image_2']
 
 if __name__ == "__main__":
     
