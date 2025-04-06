@@ -51,9 +51,7 @@ def icp(P, Q, max_iter=10, tol=1e-6):
             print(f"Converged at iteration {it}")
             break
 
-    R = T[:3, :3]
-    t = T[:3, 3]
-    return R, t
+    return T
 
 def svd_registration(P, Q):
     """
@@ -83,7 +81,7 @@ def svd_registration(P, Q):
     R = Vt.T @ U.T
     t = Q_centroid - R @ P_centroid
 
-    return R, t
+    return to_transform(R, t)
 
 def ransac(P, Q, optim_method="svd", threshold=0.05, max_iterations=1000):    
     """
@@ -112,10 +110,9 @@ def ransac(P, Q, optim_method="svd", threshold=0.05, max_iterations=1000):
         
         # estimate transformation using the sampled points
         if optim_method == "svd":
-            R, t = svd_registration(src_pts, target_pts)
+            T = svd_registration(src_pts, target_pts)
         else:
-            R, t = icp(src_pts, target_pts)
-        T = to_transform(R, t)
+            T = icp(src_pts, target_pts)
         
         # apply the transformation to all keypoints in source frame
         transformed_pts = transform(T, P)
@@ -136,13 +133,11 @@ def ransac(P, Q, optim_method="svd", threshold=0.05, max_iterations=1000):
     src_pts = P[inliers_best]
     target_pts = Q[inliers_best]
     if optim_method == "svd":
-        R, t = svd_registration(src_pts, target_pts)
+        T = svd_registration(src_pts, target_pts)
     else:
-        R, t = icp(src_pts, target_pts)
-    T = to_transform(R, t)
+        T = icp(src_pts, target_pts)
     
     return T
-
 
 
 if __name__ == "__main__":

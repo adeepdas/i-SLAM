@@ -30,7 +30,7 @@ if __name__ == "__main__":
         # feature extraction
         rgb1 = rgbd1[:, :, 0:3].astype(np.uint8)
         rgb2 = rgbd2[:, :, 0:3].astype(np.uint8)
-        validMatches1, validMatches2 = orb.feature_extraction(rgb1, rgb2)
+        matches1, matches2 = orb.feature_extraction(rgb1, rgb2)
 
         # convert rgbd to point cloud
         depth1 = rgbd1[:, :, 3]
@@ -39,8 +39,8 @@ if __name__ == "__main__":
         pc1 = np.zeros((H, W, 3))
         pc2 = np.zeros((H, W, 3))
         # index into pointclouds by extracted features
-        P = pc1[validMatches1, :] # N x 3
-        Q = pc2[validMatches2, :] # N x 3
+        P = pc1[matches1, :] # N x 3
+        Q = pc2[matches2, :] # N x 3
 
         # optimize transform
         T = fit_transform3D.ransac(P, Q)
