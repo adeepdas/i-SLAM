@@ -198,8 +198,11 @@ def receive_data(host, port):
                         # Convert the frame to a numpy array and resize to 320x180
                         frame_array_video = np.frombuffer(frame, dtype=np.ubyte).reshape((h, ls // 3, 3))
                         frame_resized = cv2.resize(frame_array_video, (320, 180))
+                        # Convert the frame to RGB format
+                        rgb_frame = cv2.cvtColor(frame_resized, cv2.COLOR_RGB2BGR)
+
                         if not video_frame_queue.full():
-                            video_frame_queue.put(frame_resized)
+                            video_frame_queue.put(rgb_frame)
 
                         # Record the frame if we haven't collected 10 frames yet
                         if recorded_count < DEBUG_FRAME_COUNTER:
@@ -215,7 +218,7 @@ def receive_data(host, port):
                             recorded_frames[recorded_count]['gx'] = gyro_x
                             recorded_frames[recorded_count]['gy'] = gyro_y
                             recorded_frames[recorded_count]['gz'] = gyro_z
-                            recorded_frames[recorded_count]['rgb'] = frame_resized
+                            recorded_frames[recorded_count]['rgb'] = rgb_frame
                             recorded_frames[recorded_count]['depth'] = depth_raw
                             print(f"Recorded frame {recorded_count+1}/10")
                             recorded_count += 1

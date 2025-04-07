@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 
-TIME_BETWEEN_FRAMES_MILLISECONDS = 1000  
+TIME_BETWEEN_FRAMES_MILLISECONDS = 200
 
 def display_frames(npy_filename):
     # Load the recorded frames from the .npy file.
@@ -30,11 +30,16 @@ def display_frames(npy_filename):
         depth_map[np.isinf(depth_map)] = 0
         depth_normalized = (depth_map - np.min(depth_map)) / (np.max(depth_map) - np.min(depth_map)) * 255
         depth_8bit = depth_normalized.astype(np.uint8)
-
         colored_depth = cv2.applyColorMap(255-depth_8bit, cv2.COLORMAP_JET)
 
 
         # Display the images in separate windows.
+        #rgb to bgr
+        rgb_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR) # cv2 uses BGR by default
+        # Resize the images for better visibility
+        rgb_frame = cv2.resize(rgb_frame, (640, 360))
+        depth_8bit = cv2.resize(depth_8bit, (640, 360))
+        colored_depth = cv2.resize(colored_depth, (640, 360))
         cv2.imshow("RGB Frame", rgb_frame)
         cv2.imshow("Depth Frame", depth_8bit)
         cv2.imshow("Colored Depth Frame", colored_depth)
