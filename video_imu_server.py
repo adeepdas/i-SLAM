@@ -8,7 +8,7 @@ import queue
 
 
 START_MARKER = b'\xAB\xCD\xEF\x01'  # 4-byte unique identifier
-HEADER_SIZE = 24  # 4 (marker) + 8 (timestamp) + 4 (video size) + 4 (depth size) + 4 (intrinsic Size) 
+HEADER_SIZE = 28  # 4 (marker) + 8 (timestamp) + 4 (video size) + 4 (depth size) + 4 (intrinsic Size) + 4 (imu size
 IMU_PACKET_SIZE = 212 # 4 (marker) + 8 (timestamp) + 200 (data)
 
 # Server Config
@@ -44,8 +44,8 @@ def extract_packet(buffer):
 
     # Extract header information
     header = buffer[marker_index:marker_index + HEADER_SIZE]
-    timestamp, video_size, depth_size, intrinsic_size = struct.unpack("dIII", header[4:HEADER_SIZE])
-    frame_size = video_size + depth_size + intrinsic_size
+    timestamp, video_size, depth_size, intrinsic_size, imu_size = struct.unpack("dIIII", header[4:HEADER_SIZE])
+    frame_size = video_size + depth_size + intrinsic_size + imu_size
 
 
     # Check if the entire frame data is available
@@ -59,15 +59,21 @@ def extract_packet(buffer):
     depth_data = buffer[marker_index + HEADER_SIZE + video_size:marker_index + HEADER_SIZE + video_size + depth_size]
 
     # Extract intrinsic data
-    intrinsic_buffer = buffer[marker_index + HEADER_SIZE + video_size + depth_size:marker_index + HEADER_SIZE + frame_size]
+    intrinsic_buffer = buffer[marker_index + HEADER_SIZE + video_size + depth_size:marker_index + HEADER_SIZE + video_size + depth_size + intrinsic_size]
 
     fx, fy, cx, cy = struct.unpack("ffff", intrinsic_buffer) 
+
+    # Extract IMU data
+    imu_buffer = buffer[marker_index + HEADER_SIZE + video_size + depth_size + intrinsic_size:marker_index + HEADER_SIZE + frame_size]
+
+    r_ax, r_ay, r_az, r_gx, r_gy, r_gz, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z = struct.unpack("dddddddddddd", imu_buffer)
+    
 
     # Extract the frame data
     # frame_data = buffer[marker_index + HEADER_SIZE:marker_index + HEADER_SIZE + frame_size]
     remaining_buffer = buffer[marker_index + HEADER_SIZE + frame_size:]
 
-    return (timestamp, video_data, depth_data, fx, fy, cx, cy), remaining_buffer
+    return (timestamp, video_data, depth_data, fx, fy, cx, cy, r_ax, r_ay, r_az, r_gx, r_gy, r_gz, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z), remaining_buffer
 
 
 def receive_h264_video(host, port):
@@ -265,13 +271,22 @@ def receive_data(host, port):
                 extracted_packet, buffer = extract_packet(buffer)
                 if extracted_packet is None:
                     break  # Wait for more data
+                        
+                timestamp, video_data, depth_data, fx, fy, cx, cy, r_ax, r_ay, r_az, r_gx, r_gy, r_gz, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z = extracted_packet
 
-                timestamp, video_data, depth_data, fx, fy, cx, cy = extracted_packet
 
                 # print fx, fy, cx, cy
                 print(f"Intrinsic: fx={fx}, fy={fy}, cx={cx}, cy={cy}")
 
-
+                print(f"IMU Data: @ {timestamp}")
+                print("Acc Data:")
+                print(f"{'Acc_X':<10}{'Acc_Y':<10}{'Acc_Z':<10}")
+                print(f"{acc_x:<10.6f}{acc_y:<10.6f}{acc_z:<10.6f}")
+                print("\n")
+                print("Gyro Data:")
+                print(f"{'Gyro_X':<10}{'Gyro_Y':<10}{'Gyro_Z':<10}")
+                print(f"{gyro_x:<10.6f}{gyro_y:<10.6f}{gyro_z:<10.6f}")
+                print("\n")
 
                 # Display depth data
                 depth_img = buffer_to_image(depth_data)
