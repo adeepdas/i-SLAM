@@ -36,7 +36,7 @@ frame_dtype = np.dtype([
     ('gx', np.float64),
     ('gy', np.float64),
     ('gz', np.float64),
-    ('rgb', np.uint8, (180, 320, 3)),   # 320x180 RGB image
+    ('rgb', np.uint8, (180, 320, 3)),      # 320x180 RGB image
     ('depth', np.float16, (180, 320))      # 320x180 depth image in raw float16
 ])
 
