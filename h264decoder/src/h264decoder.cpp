@@ -91,7 +91,9 @@ const AVFrame* H264Decoder::decode_frame()
   if (!ret) {
     ret = avcodec_receive_frame(context, frame);
     if (!ret)
+    {
       return frame;
+    }
   }
   return nullptr;
 #else
@@ -152,7 +154,9 @@ fill the buffer we should also use it to determine the required size.
 */
 int ConverterRGB24::predict_size(int w, int h)
 {
+  // return av_image_fill_arrays(framergb->data, framergb->linesize, nullptr, AV_PIX_FMT_RGB24, w, h, 1);
   return av_image_fill_arrays(framergb->data, framergb->linesize, nullptr, AV_PIX_FMT_RGB24, w, h, 1);
+
 }
 
 

@@ -5,6 +5,8 @@ import cv2
 import h264decoder  # Import the decoder from the cloned repository
 import threading
 import queue
+import time
+import csv
 
 
 START_MARKER = b'\xAB\xCD\xEF\x01'  # 4-byte unique identifier
@@ -18,10 +20,17 @@ DEPTH_PORT = 14005
 
 DEPTH_HEIGHT = 180
 DEPTH_WIDTH = 320
+
+TIME_THRESHOLD = 10  # 0.05 milliseconds is lowest without file writing
+MAX_FRAMES_TO_SAVE = 10  # save the first 10 frames
+
+frame_save_counter = 0  # Global counter for saved frames
+
 HOST = '0.0.0.0'  # Listen on all interfaces
 
 video_frame_queue = queue.Queue(maxsize=10)
 depth_frame_queue = queue.Queue(maxsize=10)
+writer_queue = queue.Queue()
 
 def get_local_ip():
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -95,8 +104,12 @@ def receive_h264_video(host, port):
                     if frame is not None:
                         # Convert the frame to a numpy array
                         frame = np.frombuffer(frame, dtype=np.ubyte).reshape((h, ls // 3, 3))
+                        # Convert frame into float 16 values
+                        # frame = frame.astype(np.float16)
+
+                        video_frame_resize = cv2.resize(frame, (320, 180), interpolation=cv2.INTER_AREA)
                         if not video_frame_queue.full():
-                            video_frame_queue.put(frame)                        
+                            video_frame_queue.put((timestamp, video_frame_resize))                        
 
                     else:
                         print('frame is None')
@@ -144,13 +157,18 @@ def receive_imu_data(host, port):
         print("Connection closed")
 
 def buffer_to_image(frame_data):
-    depth_map = np.frombuffer(frame_data, dtype=np.float16)
+    depth_map = np.frombuffer(frame_data, dtype=np.float16).copy()
     depth_map = depth_map.reshape((DEPTH_HEIGHT, DEPTH_WIDTH))  # Adjust shape as necessary
-    # print(f"Depth map shape: {depth_map.shape}")
+    print(f"Depth map shape: {depth_map.shape}")
     # print("Min depth:", np.min(depth_map))
     # print("Max depth:", np.max(depth_map))
     # print("NaNs count:", np.isnan(depth_map).sum())
     # print("Infs count:", np.isinf(depth_map).sum())
+
+    # convert all nan and inf values to 0
+    depth_map[np.isnan(depth_map)] = 0
+    depth_map[np.isinf(depth_map)] = 0
+    print("NaNs count after:", np.isnan(depth_map).sum())
 
     depth_map = depth_map.astype(np.float32)  # Convert float16 → float32
     depth_normalized = (depth_map - np.min(depth_map)) / (np.max(depth_map) - np.min(depth_map)) * 255
@@ -190,7 +208,7 @@ def receive_depth_data(host, port):
                 # buffer_to_image(frame_data)
                 depth_img = buffer_to_image(frame_data)
                 if not depth_frame_queue.full():
-                    depth_frame_queue.put(depth_img)
+                    depth_frame_queue.put((timestamp, depth_img))
 
     except Exception as e:
         print(f"Error: {e}")
@@ -198,29 +216,128 @@ def receive_depth_data(host, port):
         connection.close()
         print("Connection closed")
 
-def display_loop():
+def get_synchronized_frame():
+    """
+    Retrieves a synchronized pair of video and depth frames from their respective queues.
+    Returns:
+        video_frame (np.array): The video frame (shape: 180,320,3)
+        depth_frame (np.array): The depth frame (shape: 180,320)
+        timestamp (float): The video frame's timestamp used for synchronization.
+    The function waits until frames from both queues are available and their timestamps differ
+    by no more than TIME_THRESHOLD.
+    """
     while True:
-        video_frame = None
-        depth_frame = None
+        try:
+            video_timestamp, video_frame = video_frame_queue.get_nowait()
+            depth_timestamp, depth_frame = depth_frame_queue.get_nowait()
+            
+            # Check if timestamps are close enough
+            if abs(video_timestamp - depth_timestamp) <= TIME_THRESHOLD:
+                return video_timestamp, video_frame, depth_frame 
+            else:
+                # Discard the older frame and continue searching
+                if video_timestamp < depth_timestamp:
+                    continue  # discard this video frame
+                else:
+                    continue  # discard this depth frame
+        except queue.Empty:
+            time.sleep(0.01)
+            continue
 
-        if not video_frame_queue.empty():
-            video_frame = video_frame_queue.get()
 
-        if not depth_frame_queue.empty():
-            depth_frame = depth_frame_queue.get()
+def write_npz(timestamps, combined_frames):
+    """
+    Write the accumulated timestamps and combined frames to one NPZ file.
+    The NPZ file will contain:
+      - 'timestamps': an array of float64 timestamps
+      - 'frames': an array of shape (N, 180, 320, 4) in float16
+    """
+    np.savez("combined_frames.npz",
+             timestamps=np.array(timestamps, dtype=np.float64),
+             frames=np.array(combined_frames, dtype=np.float16))
+    print("Wrote 10 synchronized frames to 'combined_frames.npz'")
 
-        if video_frame is not None:
-            # bgr = cv2.cvtColor(video_frame, cv2.COLOR_YUV2BGR_NV12)
-            cv2.imshow("Video Frame", video_frame)
+def write_csv(timestamps, combined_frames):
+    """
+    Write the accumulated timestamps and combined frames to a CSV file.
+    Each row will contain:
+      - The timestamp (float64) in the first column
+      - The flattened combined frame data (180*320*4 = 230400 values as float16)
+    Note: The CSV file will be very wide.
+    """
+    csv_filename = "combined_frames.csv"
+    num_pixels = 180 * 320 * 4  # Total pixel values per combined frame
+    with open(csv_filename, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        # Write header row (optional)
+        header = ["timestamp"] + [f"pixel_{i}" for i in range(num_pixels)]
+        writer.writerow(header)
+        
+        for ts, frame in zip(timestamps, combined_frames):
+            flattened = frame.flatten()
+            row = [ts] + flattened.tolist()
+            writer.writerow(row)
+    print(f"Wrote 10 synchronized frames to '{csv_filename}'")
 
-        if depth_frame is not None:
-            depth_vis = cv2.resize(depth_frame, (640, 360), interpolation=cv2.INTER_NEAREST)
-            cv2.imshow("Depth Map", depth_vis)
+def display_and_save_loop():
+    """
+    Continuously retrieves synchronized frames, displays the video and depth frames in separate windows,
+    and accumulates the first 10 combined frames (converted to float16). Once 10 frames have been accumulated,
+    their data is pushed to the writer_queue for file writing. The display loop then continues to show new frames.
+    """
+    timestamps = []
+    combined_frames = []
+    file_written = False  # Flag to ensure we only queue file writing once
 
+    while True:
+        # Retrieve a synchronized frame
+
+        timestamp, video_frame, depth_frame = get_synchronized_frame()
+        cv2.imshow("Video Frame", video_frame)
+        cv2.imshow("Depth Frame", depth_frame) 
+        # Display the separate frames
+
+        
+        # # Convert frames to float16
+        # video_fp16 = video_frame.astype(np.float16)
+        # depth_fp16 = depth_frame.astype(np.float16)
+        # # # Expand depth frame to shape (180,320,1) for concatenation
+        # depth_fp16 = np.expand_dims(depth_fp16, axis=2)
+        # # Concatenate to form a combined frame: shape (180,320,4)
+        # combined = np.concatenate((video_fp16, depth_fp16), axis=2)
+        
+        # # Accumulate the frame and timestamp if under the limit
+        # if len(timestamps) < MAX_FRAMES_TO_SAVE:
+        #     timestamps.append(timestamp)
+        #     combined_frames.append(combined)
+        #     print(f"Accumulated frame {len(timestamps)}")
+        
+        # # Once 10 frames have been collected and file writing hasn't been triggered yet,
+        # # push the data to the writer queue.
+        # if len(timestamps) == MAX_FRAMES_TO_SAVE and not file_written:
+        #     print("Writing 10 frames to file...")
+        #     writer_queue.put((timestamps, combined_frames))
+        #     file_written = True
+        
+        # Continue displaying frames until 'q' is pressed.
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-
+    
     cv2.destroyAllWindows()
+
+def file_writer():
+    """
+    Worker thread that waits for data on the writer_queue.
+    When it gets data (timestamps and combined frames), it writes the NPZ and CSV files.
+    """
+    while True:
+        data = writer_queue.get()
+        if data is None:  # Sentinel to stop the thread.
+            break
+        timestamps, combined_frames = data
+        write_npz(timestamps, combined_frames)
+        # write_csv(timestamps, combined_frames)
+        writer_queue.task_done()
 
 if __name__ == "__main__":
     # get ip address
@@ -231,20 +348,25 @@ if __name__ == "__main__":
     video_thread = threading.Thread(target=receive_h264_video, args=(HOST, VIDEO_PORT))
     imu_thread = threading.Thread(target=receive_imu_data, args=(HOST, IMU_PORT))
     depth_thread = threading.Thread(target=receive_depth_data, args=(HOST, DEPTH_PORT))
+    # Create and start the writer thread.
+    writer_thread = threading.Thread(target=file_writer, daemon=True)
+    writer_thread.start()
 
     # Start both threads
     video_thread.start()
-    imu_thread.start()
+    # imu_thread.start()
     depth_thread.start()
-
+    writer_queue.put(None)
+    
     # Main thread handles GUI
-    display_loop()
+    display_and_save_loop()
 
     # Wait for both to finish
     video_thread.join()
-    imu_thread.join()
+    # imu_thread.join()
     depth_thread.join()
-
+    
+    writer_thread.join()
     print("Server shutting down.")
 
 
