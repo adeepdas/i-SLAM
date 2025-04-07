@@ -1,6 +1,8 @@
 import numpy as np
 import cv2
 
+TIME_BETWEEN_FRAMES_MILLISECONDS = 1000  
+
 def display_frames(npy_filename):
     # Load the recorded frames from the .npy file.
     frames = np.load(npy_filename)
@@ -29,12 +31,16 @@ def display_frames(npy_filename):
         depth_normalized = (depth_map - np.min(depth_map)) / (np.max(depth_map) - np.min(depth_map)) * 255
         depth_8bit = depth_normalized.astype(np.uint8)
 
+        colored_depth = cv2.applyColorMap(255-depth_8bit, cv2.COLORMAP_JET)
+
+
         # Display the images in separate windows.
         cv2.imshow("RGB Frame", rgb_frame)
         cv2.imshow("Depth Frame", depth_8bit)
+        cv2.imshow("Colored Depth Frame", colored_depth)
         
-        # Wait for 1 second (1000 ms). Press 'q' to exit early.
-        key = cv2.waitKey(1000)
+        # Press 'q' to exit early.
+        key = cv2.waitKey(TIME_BETWEEN_FRAMES_MILLISECONDS)
         if key & 0xFF == ord('q'):
             break
             
