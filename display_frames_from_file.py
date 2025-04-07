@@ -23,18 +23,12 @@ def display_frames(npy_filename):
         # Retrieve the raw depth data (float16) and normalize it for display
         depth_map = frame['depth']
 
+        # Only do this if displaying depth data
         depth_map[np.isnan(depth_map)] = 0
         depth_map[np.isinf(depth_map)] = 0
-
         depth_normalized = (depth_map - np.min(depth_map)) / (np.max(depth_map) - np.min(depth_map)) * 255
         depth_8bit = depth_normalized.astype(np.uint8)
 
-        # # get rid of nan and inf values
-        # depth_frame = np.nan_to_num(depth_frame, nan=0.0, posinf=0.0, neginf=0.0)
-
-        # depth_disp = cv2.normalize(depth_frame, None, 0, 255, cv2.NORM_MINMAX)
-        # depth_disp = depth_disp.astype(np.uint8)
-        
         # Display the images in separate windows.
         cv2.imshow("RGB Frame", rgb_frame)
         cv2.imshow("Depth Frame", depth_8bit)
