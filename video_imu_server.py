@@ -17,7 +17,7 @@ DEPTH_WIDTH = 320
 
 HOST = '0.0.0.0'  # Listen on all interfaces
 
-DEBUG_FRAME_COUNTER = 60
+DEBUG_FRAME_COUNTER = 120
 
 video_frame_queue = queue.Queue(maxsize=10)
 depth_frame_queue = queue.Queue(maxsize=10)
@@ -36,7 +36,7 @@ frame_dtype = np.dtype([
     ('gx', np.float64),
     ('gy', np.float64),
     ('gz', np.float64),
-    ('rgb', np.uint8, (180, 320, 3)),      # 320x180 RGB image
+    ('bgr', np.uint8, (180, 320, 3)),      # 320x180 BGR image
     ('depth', np.float16, (180, 320))      # 320x180 depth image in raw float16
 ])
 
@@ -131,10 +131,6 @@ def display_loop():
             cv2.imshow("Video Frame", video_frame)
 
         if depth_frame is not None:
-            # For display purposes, we convert the raw float16 depth to a uint8 image
-            # by normalizing it. This does not affect the recorded raw data.
-            # depth_disp = cv2.normalize(depth_frame, None, 0, 255, cv2.NORM_MINMAX)
-            # depth_disp = depth_disp.astype(np.uint8)
             cv2.imshow("Depth Map", depth_frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -154,6 +150,7 @@ def receive_data(host, port):
     print(f"Connection from {client_address}")
 
     # Initialize H264 decoder
+    # YCBCr to RGB conversion
     decoder = h264decoder.H264Decoder()
 
     # Buffer to accumulate received data
@@ -176,14 +173,6 @@ def receive_data(host, port):
                  r_ax, r_ay, r_az, r_gx, r_gy, r_gz,
                  acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z) = extracted_packet
 
-                # print(f"Intrinsic: fx={fx}, fy={fy}, cx={cx}, cy={cy}")
-                # print(f"IMU Data: @ {timestamp}")
-                # print("Acc Data:")
-                # print(f"{'Acc_X':<10}{'Acc_Y':<10}{'Acc_Z':<10}")
-                # print(f"{acc_x:<10.6f}{acc_y:<10.6f}{acc_z:<10.6f}\n")
-                # print("Gyro Data:")
-                # print(f"{'Gyro_X':<10}{'Gyro_Y':<10}{'Gyro_Z':<10}")
-                # print(f"{gyro_x:<10.6f}{gyro_y:<10.6f}{gyro_z:<10.6f}\n")
 
                 # Process depth image: get the raw float16 depth values
                 depth_img, depth_raw = buffer_to_depth(depth_data)
@@ -198,13 +187,14 @@ def receive_data(host, port):
                         # Convert the frame to a numpy array and resize to 320x180
                         frame_array_video = np.frombuffer(frame, dtype=np.ubyte).reshape((h, ls // 3, 3))
                         frame_resized = cv2.resize(frame_array_video, (320, 180))
-                        # Convert the frame to RGB format
-                        rgb_frame = cv2.cvtColor(frame_resized, cv2.COLOR_RGB2BGR)
+
+                        # rgb to bgr, cv2 uses BGR by default
+                        bgr_frame = cv2.cvtColor(frame_resized, cv2.COLOR_RGB2BGR)
 
                         if not video_frame_queue.full():
-                            video_frame_queue.put(rgb_frame)
+                            video_frame_queue.put(bgr_frame)
 
-                        # Record the frame if we haven't collected 10 frames yet
+                        # Record the frame if DEBUG_FRAME_COUNTER is not reached
                         if recorded_count < DEBUG_FRAME_COUNTER:
                             recorded_frames[recorded_count]['timestamp'] = timestamp
                             recorded_frames[recorded_count]['fx'] = fx
@@ -218,7 +208,7 @@ def receive_data(host, port):
                             recorded_frames[recorded_count]['gx'] = gyro_x
                             recorded_frames[recorded_count]['gy'] = gyro_y
                             recorded_frames[recorded_count]['gz'] = gyro_z
-                            recorded_frames[recorded_count]['rgb'] = rgb_frame
+                            recorded_frames[recorded_count]['bgr'] = bgr_frame
                             recorded_frames[recorded_count]['depth'] = depth_raw
                             print(f"Recorded frame {recorded_count+1}/10")
                             recorded_count += 1

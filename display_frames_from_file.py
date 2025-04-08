@@ -20,7 +20,7 @@ def display_frames(npy_filename):
         print(info_text)
         
         # Retrieve the RGB image (already uint8 with shape (180,320,3))
-        rgb_frame = frame['rgb']
+        bgr_frame = frame['bgr']
         
         # Retrieve the raw depth data (float16) and normalize it for display
         depth_map = frame['depth']
@@ -34,13 +34,8 @@ def display_frames(npy_filename):
 
 
         # Display the images in separate windows.
-        #rgb to bgr
-        rgb_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR) # cv2 uses BGR by default
-        # Resize the images for better visibility
-        rgb_frame = cv2.resize(rgb_frame, (640, 360))
-        depth_8bit = cv2.resize(depth_8bit, (640, 360))
-        colored_depth = cv2.resize(colored_depth, (640, 360))
-        cv2.imshow("RGB Frame", rgb_frame)
+
+        cv2.imshow("Video Frame", bgr_frame)
         cv2.imshow("Depth Frame", depth_8bit)
         cv2.imshow("Colored Depth Frame", colored_depth)
         
@@ -52,5 +47,4 @@ def display_frames(npy_filename):
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    # Replace 'recorded_frames.npy' with the path to your .npy file.
     display_frames("recorded_frames.npy")
