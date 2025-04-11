@@ -204,10 +204,6 @@ if __name__ == "__main__":
         positions, orientations = simulate_square(dt=0.05)
     else:
         # Integrate IMU data to get trajectory
-        # ASSUME that identity at normal iPhone configuration
-        # R_init = np.array([[0, 1, 0], 
-        #                    [-1, 0, 0], 
-        #                    [0, 0, 1]])
         R_init = np.eye(3)
         positions, orientations = integrate_imu_trajectory(imu_file, g=np.zeros(3), R_init=R_init)
         print(f"Integrated trajectory from {len(positions)} IMU measurements")
