@@ -72,3 +72,21 @@ def animate_trajectory(orientations, positions, interval=20):
     ani = animation.FuncAnimation(fig, update, frames=len(positions), interval=interval, repeat=False)
     plt.show()
     return ani
+
+def plot_pointclouds(pc1, pc2):
+    """
+    Plot two pointclouds in 3D in two different colors on the same plot.
+
+    Args:
+        pc1 (np.ndarray): pointcloud of shape (N, 3)
+        pc2 (np.ndarray): pointcloud of shape (N, 3)
+    """
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(pc1[:, 0], pc1[:, 1], pc1[:, 2], c='r', marker='o', label='Previous Frame')
+    ax.scatter(pc2[:, 0], pc2[:, 1], pc2[:, 2], c='b', marker='o', label='Current Frame')
+    ax.legend()
+    ax.set_xlabel('X (m)')
+    ax.set_ylabel('Y (m)')
+    ax.set_zlabel('Z (m)')
+    plt.show()

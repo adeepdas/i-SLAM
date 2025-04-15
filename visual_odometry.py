@@ -23,12 +23,10 @@ def depth_to_pointcloud(depth, fx, fy, cx, cy):
     uu, vv = np.meshgrid(u, v)
 
     Z = depth
-    # opencv convention: use (x, y) instead of (r,c)
-    Y = (uu - cx) * Z / fx
-    X = (vv - cy) * Z / fy
-
-    # negate z to match iPhone's right handed orientation
+    X = (uu - cx) * Z / fx
+    Y = (vv - cy) * Z / fy
     points = np.stack((X, Y, -Z), axis=-1)
+
     return points
 
 def rotate_frame(frame):
@@ -38,6 +36,7 @@ def rotate_frame(frame):
     bgr = cv2.rotate(frame['bgr'], cv2.ROTATE_90_CLOCKWISE)
     depth = cv2.rotate(frame['depth'], cv2.ROTATE_90_CLOCKWISE)
     return bgr, depth
+
 
 if __name__ == "__main__":
     # read RGBD frames from npz file
@@ -71,7 +70,8 @@ if __name__ == "__main__":
             frame_curr['cx'],
             frame_curr['cy']
         )
-        print(f"t: {t}, matches: {matches_prev.shape}")
+        # visualization.plot_pointclouds(pc_prev, pc_curr)
+        # print(f"t: {t}, matches: {matches_prev.shape}")
         # index into pointclouds by extracted features
         # switch (x, y) to (y, x) because we are indexing into np array with opencv convention 
         P = pc_prev[matches_prev[:, 1], matches_prev[:, 0], :] # N x 3
@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
         # optimize transform
         # TODO - tune max_iterations
-        T = fit_transform3D.ransac(Q, P, max_iterations=1000)
+        T = fit_transform3D.ransac(Q, P, max_iterations=100)
         transforms.append(transforms[-1] @ T)
 
     transforms = np.array(transforms)
