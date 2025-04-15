@@ -1,6 +1,10 @@
 import numpy as np
+import os
 from iSLAM.utils import skew
+from iSLAM.visualization import animate_trajectory
 
+
+G = -9.8
 
 def Gamma0(phi):
     """
@@ -101,3 +105,148 @@ def integrate_imu_state(R, v, p, omega, a, dt, g):
     p_next = p + v * dt + (R @ (Gamma2_val @ a)) * (dt**2) + 0.5 * g * (dt**2)
     
     return R_next, v_next, p_next
+
+
+def simulate_square(dt=0.01, v_const=1.0, L=2.0, T_turn=1.0):
+    """
+    Simulate a square trajectory using the 3D IMU integration model
+    (with planar motion) and return the positions and orientations.
+    
+    Returns:
+        positions (np.ndarray): Array of shape (N, 3) containing the 3D positions.
+        orientations (list): List of 3x3 rotation matrices at each time step.
+    """
+    # Calculate durations for straight segments and turns.
+    T_straight = L / v_const  # duration for a straight segment
+    w_turn = (np.pi / 2) / T_turn  # angular rate for a 90° turn (about the z-axis)
+    
+    # Define the control inputs for each segment.
+    segments = [
+        # Segment 1: Straight
+        (T_straight, np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])),
+        # Segment 2: Turn 90° counterclockwise
+        (T_turn, np.array([0.0, 0.0, w_turn]), 
+         skew(np.array([0.0, 0.0, w_turn])) @ np.array([v_const, 0.0, 0.0])),
+        # Segment 3: Straight
+        (T_straight, np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])),
+        # Segment 4: Turn 90°
+        (T_turn, np.array([0.0, 0.0, w_turn]), 
+         skew(np.array([0.0, 0.0, w_turn])) @ np.array([v_const, 0.0, 0.0])),
+        # Segment 5: Straight
+        (T_straight, np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])),
+        # Segment 6: Turn 90°
+        (T_turn, np.array([0.0, 0.0, w_turn]), 
+         skew(np.array([0.0, 0.0, w_turn])) @ np.array([v_const, 0.0, 0.0])),
+        # Segment 7: Straight
+        (T_straight, np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])),
+        # Segment 8: Turn 90° to return to original heading
+        (T_turn, np.array([0.0, 0.0, w_turn]), 
+         skew(np.array([0.0, 0.0, w_turn])) @ np.array([v_const, 0.0, 0.0])),
+    ]
+    
+    # --- Initial State ---
+    R = np.eye(3)
+    v = R @ np.array([v_const, 0.0, 0.0])  # initial velocity along the body x-axis
+    p = np.zeros(3)
+    g = np.zeros(3)  # no gravity for planar motion
+
+    positions = []
+    orientations = []
+
+    # --- Simulation Loop ---
+    for (duration, omega_input, a_input) in segments:
+        steps = int(duration / dt)
+        # For straight segments, force the velocity to be R*[v_const, 0, 0]
+        if np.linalg.norm(omega_input) < 1e-8:
+            v = R @ np.array([v_const, 0.0, 0.0])
+        for _ in range(steps):
+            positions.append(p.copy())
+            orientations.append(R.copy())
+            R, v, p = integrate_imu_state(R, v, p, omega_input, a_input, dt, g)
+    
+    return np.array(positions), np.array(orientations)
+
+def read_imu_data(file_path):
+    """
+    Read IMU data from a file with format:
+    timestamp, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z
+    
+    Args:
+        file_path (str): Path to the IMU data file
+        
+    Returns:
+        timestamps (np.ndarray): Array of timestamps
+        acc_data (np.ndarray): Array of shape (N, 3) containing accelerometer data
+        gyro_data (np.ndarray): Array of shape (N, 3) containing gyroscope data
+    """
+    frames = np.load(file_path, allow_pickle=True)
+    T = len(frames)
+    timestamps = np.zeros(T)
+    acc_data = np.zeros((T, 3))
+    gyro_data = np.zeros((T, 3))
+    for t in range(T):
+        timestamps[t] = frames[t]['timestamp']
+        ax, ay, az = frames[t]['ax'], frames[t]['ay'], frames[t]['az']
+        gx, gy, gz = frames[t]['gx'], frames[t]['gy'], frames[t]['gz']
+        acc_data[t] = np.array([ax, ay, az]) * G
+        gyro_data[t] = np.array([gx, gy, gz])
+    return timestamps, acc_data, gyro_data
+
+def integrate_imu_trajectory(file_path, g=np.array([0, 0, G]), R_init=np.eye(3)):
+    """
+    Integrate IMU data to get trajectory.
+    
+    Args:
+        file_path (str): Path to the IMU data file
+        g (np.ndarray): Gravity vector in world frame
+        
+    Returns:
+        positions (np.ndarray): Array of shape (N, 3) containing the 3D positions
+        orientations (list): List of 3x3 rotation matrices at each time step
+    """
+    # Read IMU data
+    timestamps, acc_data, gyro_data = read_imu_data(file_path)
+    
+    # Initialize state
+    R = R_init  # Initial orientation
+    v = np.zeros(3)  # Initial velocity
+    p = np.zeros(3)  # Initial position
+    
+    positions = [p.copy()]
+    orientations = [R.copy()]
+    
+    # Integration loop
+    for i in range(1, len(timestamps)):
+        # Calculate dt from timestamps
+        dt = timestamps[i] - timestamps[i-1]
+        
+        # Get IMU measurements
+        omega = gyro_data[i-1]  # Angular velocity
+        acc = acc_data[i-1]     # Linear acceleration
+        
+        # Integrate state
+        R, v, p = integrate_imu_state(R, v, p, omega, acc, dt, g)
+        
+        # Store results
+        positions.append(p.copy())
+        orientations.append(R.copy())
+    
+    return np.array(positions), np.array(orientations)
+
+if __name__ == "__main__":
+    # Path to IMU data file
+    imu_file = "data/straight_line_vertical.npy"
+    
+    # Check if file exists
+    if not os.path.exists(imu_file):
+        print(f"Error: File {imu_file} not found. Falling back to simulated data.")
+        positions, orientations = simulate_square(dt=0.05)
+    else:
+        # Integrate IMU data to get trajectory
+        R_init = np.eye(3)
+        # set gravity to zero because iPhone does gravity compensation
+        positions, orientations = integrate_imu_trajectory(imu_file, g=np.zeros(3), R_init=R_init)
+        print(f"Integrated trajectory from {len(positions)} IMU measurements")
+    
+    # Animate the trajectory
+    ani = animate_trajectory(orientations, positions, interval=20)

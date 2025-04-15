@@ -2,12 +2,8 @@ import iSLAM.orb as orb
 import iSLAM.fit_transform3D as fit_transform3D
 import iSLAM.visualization as visualization
 import numpy as np
+import cv2
 
-# transformation to go from IPhone coordinate frame into the visualization coordinate frame
-T_PHONE2VIZ = np.array([[1, 0, 0, 0], 
-                       [0, 0, 1, 0], 
-                       [0, -1, 0, 0], 
-                       [0, 0, 0, 1]], dtype=float)
 
 def depth_to_pointcloud(depth, fx, fy, cx, cy):
     """
@@ -35,26 +31,32 @@ def depth_to_pointcloud(depth, fx, fy, cx, cy):
     points = np.stack((X, Y, -Z), axis=-1)
     return points
 
+def rotate_frame(frame):
+    """
+    Rotate the frame by 90 degrees counterclockwise.
+    """
+    bgr = cv2.rotate(frame['bgr'], cv2.ROTATE_90_CLOCKWISE)
+    depth = cv2.rotate(frame['depth'], cv2.ROTATE_90_CLOCKWISE)
+    return bgr, depth
+
 if __name__ == "__main__":
     # read RGBD frames from npz file
-    frames = np.load('data/recorded_frames.npy')
+    frames = np.load('data/rectangle_vertical.npy', allow_pickle=True)
     # frames = [frames[35], frames[45]]
     T = len(frames)
-    transforms = [T_PHONE2VIZ]
+    transforms = [np.eye(4)]
     for t in range(T-1):
         frame_prev = frames[t]
         frame_curr = frames[t+1]
+        bgr_prev, depth_prev = rotate_frame(frame_prev)
+        bgr_curr, depth_curr = rotate_frame(frame_curr)
         
         # exact BGR frames and preform feature matching betwwen frames
-        bgr_prev = frame_prev['bgr']
-        bgr_curr = frame_curr['bgr']
         matches_prev, matches_curr = orb.feature_extraction(bgr_prev, bgr_curr)
         if matches_prev.shape[0] < 3:
             continue
 
         # extract depth data
-        depth_prev = frame_prev['depth']
-        depth_curr = frame_curr['depth']
         pc_prev = depth_to_pointcloud(
             depth_prev, 
             frame_prev['fx'],
@@ -69,7 +71,7 @@ if __name__ == "__main__":
             frame_curr['cx'],
             frame_curr['cy']
         )
-        # print(f"t: {t}, matches: {matches_prev.shape}")
+        print(f"t: {t}, matches: {matches_prev.shape}")
         # index into pointclouds by extracted features
         # switch (x, y) to (y, x) because we are indexing into np array with opencv convention 
         P = pc_prev[matches_prev[:, 1], matches_prev[:, 0], :] # N x 3
@@ -77,7 +79,7 @@ if __name__ == "__main__":
 
         # optimize transform
         # TODO - tune max_iterations
-        T = fit_transform3D.ransac(P, Q, max_iterations=1000)
+        T = fit_transform3D.ransac(Q, P, max_iterations=1000)
         transforms.append(transforms[-1] @ T)
 
     transforms = np.array(transforms)
