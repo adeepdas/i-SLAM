@@ -48,7 +48,7 @@ def icp(P, Q, max_iter=10, tol=1e-6):
 
         # Convergence check
         if np.linalg.norm(delta_xi) < tol:
-            print(f"Converged at iteration {it}")
+            # print(f"Converged at iteration {it}")
             break
 
     return T

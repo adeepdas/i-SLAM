@@ -233,6 +233,7 @@ def integrate_imu_trajectory(file_path, g=np.array([0, 0, G]), R_init=np.eye(3))
     
     return np.array(positions), np.array(orientations)
 
+
 if __name__ == "__main__":
     # Path to IMU data file
     imu_file = "data/straight_line_vertical.npy"

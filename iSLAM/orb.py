@@ -17,7 +17,7 @@ def feature_extraction(rgb_img_P, rgb_img_Q):
     grayQ = cv2.cvtColor(rgb_img_Q, cv2.COLOR_RGB2GRAY)
 
     # Initiate ORB detector
-    orb = cv2.ORB_create(nfeatures=2000)
+    orb = cv2.ORB_create(nfeatures=100)
 
     # find the keypoints and descriptors with ORB
     kp1, des1 = orb.detectAndCompute(grayP, None)
@@ -62,6 +62,7 @@ def feature_extraction(rgb_img_P, rgb_img_Q):
     # ############################################################################################################################################################
 
     return np.array(goodMatchesP, dtype=int), np.array(goodMatchesQ, dtype=int)
+
 
 if __name__ == "__main__":
   
