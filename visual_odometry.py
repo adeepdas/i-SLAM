@@ -15,7 +15,7 @@ def depth_to_pointcloud(depth, fx, fy, cx, cy):
         cy (float): Principal point in the y direction
 
     Returns:
-        points (np.ndarray): Point cloud of shape (N, 3)
+        points (np.ndarray): Point cloud of shape (H, W, 3)
     """
     H, W = depth.shape
     u = np.arange(W)
@@ -55,31 +55,36 @@ if __name__ == "__main__":
         if matches_prev.shape[0] < 3:
             continue
 
+        # we scale images by 1/6 to reduce resolution
+        sx = 1/6
+        sy = 1/6
         # extract depth data
         pc_prev = depth_to_pointcloud(
             depth_prev, 
-            frame_prev['fx'],
-            frame_prev['fy'],
-            frame_prev['cx'],
-            frame_prev['cy']
+            frame_prev['fx'] * sx,
+            frame_prev['fy'] * sy,
+            frame_prev['cx'] * sx,
+            frame_prev['cy'] * sy
         )
         pc_curr = depth_to_pointcloud(
             depth_curr, 
-            frame_curr['fx'],
-            frame_curr['fy'],
-            frame_curr['cx'],
-            frame_curr['cy']
+            frame_curr['fx'] * sx,
+            frame_curr['fy'] * sy,
+            frame_curr['cx'] * sx,
+            frame_curr['cy'] * sy
         )
-        # visualization.plot_pointclouds(pc_prev, pc_curr)
         # print(f"t: {t}, matches: {matches_prev.shape}")
         # index into pointclouds by extracted features
         # switch (x, y) to (y, x) because we are indexing into np array with opencv convention 
         P = pc_prev[matches_prev[:, 1], matches_prev[:, 0], :] # N x 3
         Q = pc_curr[matches_curr[:, 1], matches_curr[:, 0], :] # N x 3
+        # visualization.plot_pointclouds(Q, P)
 
         # optimize transform
         # TODO - tune max_iterations
-        T = fit_transform3D.ransac(Q, P, max_iterations=100)
+        # fit transform from Q to P since we want transform between camera frames,
+        # not between pointclouds
+        T = fit_transform3D.ransac(Q, P, max_iterations=1000)
         transforms.append(transforms[-1] @ T)
 
     transforms = np.array(transforms)
