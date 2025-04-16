@@ -236,7 +236,7 @@ def integrate_imu_trajectory(file_path, g=np.array([0, 0, G]), R_init=np.eye(3))
 
 if __name__ == "__main__":
     # Path to IMU data file
-    imu_file = "data/straight_line_vertical.npy"
+    imu_file = "data/rectangle_vertical.npy"
     
     # Check if file exists
     if not os.path.exists(imu_file):
