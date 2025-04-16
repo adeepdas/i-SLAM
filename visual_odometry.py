@@ -53,7 +53,7 @@ if __name__ == "__main__":
         
         # exact BGR frames and preform feature matching betwwen frames
         matches_prev, matches_curr = orb.feature_extraction(bgr_prev, bgr_curr)
-        if matches_prev.shape[0] < 3:
+        if matches_prev.shape[0] < 100: # emperical
             continue
 
         # we scale images by 1/6 to reduce resolution
@@ -79,13 +79,18 @@ if __name__ == "__main__":
         # switch (x, y) to (y, x) because we are indexing into np array with opencv convention 
         P = pc_prev[matches_prev[:, 1], matches_prev[:, 0], :] # N x 3
         Q = pc_curr[matches_curr[:, 1], matches_curr[:, 0], :] # N x 3
+        # remove points with z = 0 (filter infinite depth)
+        P = P[P[:, 2] != 0]
+        Q = Q[Q[:, 2] != 0]
+        # remove points with z < -20 (filtermax depth)
+        P = P[P[:, 2] > -20]
+        Q = Q[Q[:, 2] > -20]
         # visualization.plot_pointclouds(Q, P)
 
         # optimize transform
-        # TODO - tune max_iterations
         # fit transform from Q to P since we want transform between camera frames,
         # not between pointclouds
-        T = fit_transform3D.ransac(Q, P, max_iterations=1000)
+        T = fit_transform3D.ransac(Q, P, threshold=0.05, max_iterations=500)
         transforms.append(transforms[-1] @ T)
 
     transforms = np.array(transforms)
