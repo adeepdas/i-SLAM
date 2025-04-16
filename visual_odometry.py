@@ -39,6 +39,7 @@ def rotate_frame(frame):
 
 
 if __name__ == "__main__":
+    np.random.seed(42) 
     # read RGBD frames from npz file
     frames = np.load('data/rectangle_vertical.npy', allow_pickle=True)
     # frames = [frames[35], frames[45]]
@@ -73,7 +74,7 @@ if __name__ == "__main__":
             frame_curr['cx'] * sx,
             frame_curr['cy'] * sy
         )
-        # print(f"t: {t}, matches: {matches_prev.shape}")
+        print(f"t: {t}, matches: {matches_prev.shape}")
         # index into pointclouds by extracted features
         # switch (x, y) to (y, x) because we are indexing into np array with opencv convention 
         P = pc_prev[matches_prev[:, 1], matches_prev[:, 0], :] # N x 3

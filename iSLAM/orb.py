@@ -61,7 +61,7 @@ def feature_extraction(rgb_img_P, rgb_img_Q):
     # cv2.destroyAllWindows()
     # ############################################################################################################################################################
 
-    return np.array(goodMatchesP, dtype=int), np.array(goodMatchesQ, dtype=int)
+    return np.round(goodMatchesP, 0).astype(int), np.round(goodMatchesQ, 0).astype(int)
 
 
 if __name__ == "__main__":
