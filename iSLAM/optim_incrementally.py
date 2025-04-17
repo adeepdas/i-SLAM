@@ -4,6 +4,8 @@ from typing import List, Tuple
 from visual_odometry import extract_visual_odometry
 from imu_integration import integrate_imu_trajectory
 
+# create a new graph every time and optimize incrementally 
+
 def gtsam_optimization(frames: List[dict], imu_file: str) -> Tuple[np.ndarray, np.ndarray]:
     """
     Refine SLAM trajectory using GTSAM with visual odometry and IMU data.
@@ -32,6 +34,7 @@ def gtsam_optimization(frames: List[dict], imu_file: str) -> Tuple[np.ndarray, n
     prior_noise = gtsam.noiseModel.Diagonal.Sigmas(np.array([0.5, 0.5, 0.5, 0.1, 0.1, 0.1]))
     
     for t in range(len(frames)):
+        print("Loop 1 - Frame:", t)
         # Create factor graph for this frame
         graph = gtsam.NonlinearFactorGraph()
         initial_values = gtsam.Values()
@@ -66,6 +69,7 @@ def gtsam_optimization(frames: List[dict], imu_file: str) -> Tuple[np.ndarray, n
     # Extract refined poses
     refined_transforms = []
     for t in range(len(frames)):
+        print("Loop 2 - Frame:", t)
         pose = result.atPose3(t)
         R = pose.rotation().matrix()
         t = pose.translation().vector()

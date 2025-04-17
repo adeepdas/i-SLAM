@@ -2,10 +2,10 @@ import numpy as np
 import sys
 from typing import List, Tuple
 
-# Check if GTSAM is installed
+# batch solution - optimizatize all at once
 
 import gtsam
-
+from gtsam import NonlinearFactorGraph
 from visual_odometry import extract_visual_odometry
 from imu_integration import integrate_imu_trajectory
 from visualization import animate_trajectory
@@ -29,7 +29,7 @@ def batch_optimization(frames: List[dict], imu_file: str) -> Tuple[np.ndarray, n
     imu_positions, imu_orientations = integrate_imu_trajectory(imu_file)
     
     # Create factor graph
-    graph = gtsam.NonlinearFactorGraph()
+    graph = NonlinearFactorGraph()
     initial_values = gtsam.Values()
     
     # Create noise models
