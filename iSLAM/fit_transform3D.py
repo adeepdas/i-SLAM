@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 def icp(P, Q, max_iter=10, tol=1e-6):
     """
     Estimate SE(3) transformation using Lie algebra optimization
-    (Gauss-Newton with incremental accumulation)
+    (Gauss-Newton with incremental accumulation) from P to Q.
 
     Args:
         P (np.ndarray): Source points of shape (N, 3)

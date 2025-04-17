@@ -9,7 +9,7 @@ from visual_odometry import extract_visual_odometry
 from imu_integration import integrate_imu_trajectory
 from visualization import animate_trajectory
 
-def batch_optimization(frames: List[dict], imu_file: str) -> Tuple[np.ndarray, np.ndarray]:
+def batch_optimization(frames: List[dict], imu_file: str) -> np.ndarray:
     """
     Perform batch optimization of SLAM trajectory using GTSAM with visual odometry and IMU data.
     
@@ -19,15 +19,12 @@ def batch_optimization(frames: List[dict], imu_file: str) -> Tuple[np.ndarray, n
         
     Returns:
         refined_transforms: Array of refined 4x4 transformation matrices
-        refined_positions: Array of refined 3D positions
-        
     """
-
-    print(len(frames))
-
+    print("Performing visual odometry.")
     # Extract visual odometry poses
     vo_transforms, vo_positions = extract_visual_odometry(frames)
     
+    print("Performing IMU integration.")
     # Extract IMU poses
     imu_positions, imu_orientations = integrate_imu_trajectory(imu_file)
     
@@ -35,27 +32,32 @@ def batch_optimization(frames: List[dict], imu_file: str) -> Tuple[np.ndarray, n
     graph = gtsam.NonlinearFactorGraph()
     initial_values = gtsam.Values()
     
-    # Create noise models
-    # Visual odometry noise (higher uncertainty)
-    vo_noise = gtsam.noiseModel.Diagonal.Sigmas(np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1]))
-    # IMU noise (lower uncertainty)
-    imu_noise = gtsam.noiseModel.Diagonal.Sigmas(np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05]))
-    # Prior noise for first pose
-    prior_noise = gtsam.noiseModel.Diagonal.Sigmas(np.array([0.5, 0.5, 0.5, 0.1, 0.1, 0.1]))
+    # Create noise models - matching hw5_code.py gn_3d
+    # Prior noise for first pose (same as in gn_3d)
+    first_pose_prior_cov = np.array([0.5, 0.5, 0.5, 0.1, 0.1, 0.1])
+    prior_noise = gtsam.noiseModel.Gaussian.Covariance(np.diag(first_pose_prior_cov))
+    
+    # Visual odometry noise (using same structure as prior but with different values)
+    vo_cov = np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
+    vo_noise = gtsam.noiseModel.Gaussian.Covariance(np.diag(vo_cov))
+    
+    # IMU noise (using same structure as prior but with different values)
+    imu_cov = np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
+    imu_noise = gtsam.noiseModel.Gaussian.Covariance(np.diag(imu_cov))
     
     # Add prior factor for first pose
     R = vo_transforms[0, :3, :3]
-    t = vo_transforms[0, :3, 3]
+    t = vo_transforms[0, :3, -1]
     pose = gtsam.Pose3(gtsam.Rot3(R), gtsam.Point3(t))
     graph.add(gtsam.PriorFactorPose3(0, pose, prior_noise))
     initial_values.insert(0, pose)
     
     # Add factors for all poses
-    for t in range(1, len(vo_transforms[0])):
-        print("Batch Optimization 1 - Frame:", t)
+    print("Adding factors to graph.")
+    for t in range(1, len(vo_transforms)):
         # Add visual odometry factor
         R_vo = vo_transforms[t, :3, :3]
-        t_vo = vo_transforms[t, :3, 3]
+        t_vo = vo_transforms[t, :3, -1]
         pose_vo = gtsam.Pose3(gtsam.Rot3(R_vo), gtsam.Point3(t_vo))
         graph.add(gtsam.BetweenFactorPose3(t-1, t, pose_vo, vo_noise))
         
@@ -65,36 +67,30 @@ def batch_optimization(frames: List[dict], imu_file: str) -> Tuple[np.ndarray, n
         pose_imu = gtsam.Pose3(gtsam.Rot3(R_imu), gtsam.Point3(t_imu))
         graph.add(gtsam.BetweenFactorPose3(t-1, t, pose_imu, imu_noise))
         
-        # Set initial value
-        initial_values.insert(t, pose_vo)
-    
-    # Create optimizer parameters
-    parameters = gtsam.GaussNewtonParams()
-    parameters.setVerbosity("TERMINATION")  # Print optimization progress
-    parameters.setMaxIterations(100)  # Maximum number of iterations
-    
-    # Create optimizer
-    optimizer = gtsam.GaussNewtonOptimizer(graph, initial_values, parameters)
+        # Set initial value for optimization
+        # make init pose from identity
+        initial_values.insert(t, gtsam.Pose3())
     
     # Optimize
+    print("Optimizing pose graph.")
+    optimizer = gtsam.GaussNewtonOptimizer(graph, initial_values)
     result = optimizer.optimize()
     
-    # Extract refined poses
+    # Extract refined poses using GTSAM utility
+    print("Extracting optimized poses.")
+    refined_poses = gtsam.utilities.extractPose3(result)
+    
+    # Convert poses to transformation matrices
     refined_transforms = []
-    for t in range(len(frames)):
-        print("Batch Optimization 2 - Frame:", t)
-        pose = result.atPose3(t)
-        R = pose.rotation().matrix()
-        t = pose.translation().vector()
+    for pose in refined_poses:
+        R = pose[:-3].reshape(3, 3)
+        t = pose[-3:]
         T = np.eye(4)
         T[:3, :3] = R
         T[:3, 3] = t
         refined_transforms.append(T)
     
-    refined_transforms = np.array(refined_transforms)
-    refined_positions = refined_transforms[:, :3, 3]
-    
-    return refined_transforms, refined_positions
+    return np.array(refined_transforms)
 
 if __name__ == "__main__":
     # Load data
@@ -102,8 +98,9 @@ if __name__ == "__main__":
     imu_file = 'data/rectangle_vertical.npy'  # Assuming IMU data is in the same file
     
     # Run batch optimization
-    refined_transforms, refined_positions = batch_optimization(frames, imu_file)
+    refined_transforms = batch_optimization(frames, imu_file)
     
     # Visualize results
     orientations = refined_transforms[:, :3, :3]
-    animate_trajectory(orientations, refined_positions)
+    positions = refined_transforms[:, :3, 3]
+    animate_trajectory(orientations, positions)

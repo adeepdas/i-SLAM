@@ -107,65 +107,6 @@ def integrate_imu_state(R, v, p, omega, a, dt, g):
     return R_next, v_next, p_next
 
 
-def simulate_square(dt=0.01, v_const=1.0, L=2.0, T_turn=1.0):
-    """
-    Simulate a square trajectory using the 3D IMU integration model
-    (with planar motion) and return the positions and orientations.
-    
-    Returns:
-        positions (np.ndarray): Array of shape (N, 3) containing the 3D positions.
-        orientations (list): List of 3x3 rotation matrices at each time step.
-    """
-    # Calculate durations for straight segments and turns.
-    T_straight = L / v_const  # duration for a straight segment
-    w_turn = (np.pi / 2) / T_turn  # angular rate for a 90° turn (about the z-axis)
-    
-    # Define the control inputs for each segment.
-    segments = [
-        # Segment 1: Straight
-        (T_straight, np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])),
-        # Segment 2: Turn 90° counterclockwise
-        (T_turn, np.array([0.0, 0.0, w_turn]), 
-         skew(np.array([0.0, 0.0, w_turn])) @ np.array([v_const, 0.0, 0.0])),
-        # Segment 3: Straight
-        (T_straight, np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])),
-        # Segment 4: Turn 90°
-        (T_turn, np.array([0.0, 0.0, w_turn]), 
-         skew(np.array([0.0, 0.0, w_turn])) @ np.array([v_const, 0.0, 0.0])),
-        # Segment 5: Straight
-        (T_straight, np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])),
-        # Segment 6: Turn 90°
-        (T_turn, np.array([0.0, 0.0, w_turn]), 
-         skew(np.array([0.0, 0.0, w_turn])) @ np.array([v_const, 0.0, 0.0])),
-        # Segment 7: Straight
-        (T_straight, np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])),
-        # Segment 8: Turn 90° to return to original heading
-        (T_turn, np.array([0.0, 0.0, w_turn]), 
-         skew(np.array([0.0, 0.0, w_turn])) @ np.array([v_const, 0.0, 0.0])),
-    ]
-    
-    # --- Initial State ---
-    R = np.eye(3)
-    v = R @ np.array([v_const, 0.0, 0.0])  # initial velocity along the body x-axis
-    p = np.zeros(3)
-    g = np.zeros(3)  # no gravity for planar motion
-
-    positions = []
-    orientations = []
-
-    # --- Simulation Loop ---
-    for (duration, omega_input, a_input) in segments:
-        steps = int(duration / dt)
-        # For straight segments, force the velocity to be R*[v_const, 0, 0]
-        if np.linalg.norm(omega_input) < 1e-8:
-            v = R @ np.array([v_const, 0.0, 0.0])
-        for _ in range(steps):
-            positions.append(p.copy())
-            orientations.append(R.copy())
-            R, v, p = integrate_imu_state(R, v, p, omega_input, a_input, dt, g)
-    
-    return np.array(positions), np.array(orientations)
-
 def read_imu_data(file_path):
     """
     Read IMU data from a file with format:
@@ -225,7 +166,7 @@ def integrate_imu_trajectory(file_path, g=np.array([0, 0, G]), R_init=np.eye(3))
         acc = acc_data[i-1]     # Linear acceleration
         
         # Integrate state
-        R, v, p = integrate_imu_state(R, v, p, omega, acc, dt, g)
+        R, v, p = integrate_imu_state(R_init, np.zeros(3), np.zeros(3), omega, acc, dt, g)
         
         # Store results
         positions.append(p.copy())

@@ -108,13 +108,14 @@ def extract_visual_odometry(frames: List[dict],
             P = P[P[:, 2] > depth_threshold]
             Q = Q[Q[:, 2] > depth_threshold]
             
-            if len(P) < min_matches or len(Q) < min_matches:
-                print(f"Warning: Insufficient valid points at frame {t}")
-                continue
+            # if len(P) < min_matches or len(Q) < min_matches:
+            #     print(f"Warning: Insufficient valid points at frame {t}")
+            #     continue
             
             # Estimate transform using RANSAC
             T = fit_transform3D.ransac(Q, P, threshold=ransac_threshold, max_iterations=ransac_iterations)
             transforms.append(transforms[-1] @ T)
+            # transforms.append(T)
             
         except Exception as e:
             print(f"Error processing frame {t}: {str(e)}")
