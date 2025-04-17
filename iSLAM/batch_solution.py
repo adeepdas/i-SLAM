@@ -5,7 +5,6 @@ from typing import List, Tuple
 # batch solution - optimizatize all at once
 
 import gtsam
-from gtsam import NonlinearFactorGraph
 from visual_odometry import extract_visual_odometry
 from imu_integration import integrate_imu_trajectory
 from visualization import animate_trajectory
@@ -21,7 +20,11 @@ def batch_optimization(frames: List[dict], imu_file: str) -> Tuple[np.ndarray, n
     Returns:
         refined_transforms: Array of refined 4x4 transformation matrices
         refined_positions: Array of refined 3D positions
+        
     """
+
+    print(len(frames))
+
     # Extract visual odometry poses
     vo_transforms, vo_positions = extract_visual_odometry(frames)
     
@@ -29,7 +32,7 @@ def batch_optimization(frames: List[dict], imu_file: str) -> Tuple[np.ndarray, n
     imu_positions, imu_orientations = integrate_imu_trajectory(imu_file)
     
     # Create factor graph
-    graph = NonlinearFactorGraph()
+    graph = gtsam.NonlinearFactorGraph()
     initial_values = gtsam.Values()
     
     # Create noise models
@@ -48,7 +51,8 @@ def batch_optimization(frames: List[dict], imu_file: str) -> Tuple[np.ndarray, n
     initial_values.insert(0, pose)
     
     # Add factors for all poses
-    for t in range(1, len(frames)):
+    for t in range(1, len(vo_transforms[0])):
+        print("Batch Optimization 1 - Frame:", t)
         # Add visual odometry factor
         R_vo = vo_transforms[t, :3, :3]
         t_vo = vo_transforms[t, :3, 3]
@@ -78,6 +82,7 @@ def batch_optimization(frames: List[dict], imu_file: str) -> Tuple[np.ndarray, n
     # Extract refined poses
     refined_transforms = []
     for t in range(len(frames)):
+        print("Batch Optimization 2 - Frame:", t)
         pose = result.atPose3(t)
         R = pose.rotation().matrix()
         t = pose.translation().vector()
