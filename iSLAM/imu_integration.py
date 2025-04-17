@@ -1,7 +1,7 @@
 import numpy as np
 import os
-from iSLAM.utils import skew
-from iSLAM.visualization import animate_trajectory
+from utils import skew
+from visualization import animate_trajectory
 
 
 G = -9.8

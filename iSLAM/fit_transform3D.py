@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.linalg import expm
-from iSLAM.utils import hat, skew, transform, to_transform
+from utils import hat, skew, transform, to_transform
 import matplotlib.pyplot as plt
 
 
