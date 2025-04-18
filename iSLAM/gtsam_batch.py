@@ -69,7 +69,7 @@ def batch_optimization(frames: List[dict]) -> np.ndarray:
         # graph.add(gtsam.BetweenFactorPose3(t-1, t, pose_imu, imu_noise))
         
         # Set initial value for optimization
-        # make init pose from identity
+        # make init pose from imu
         initial_values.insert(t, pose_imu)
     
     # Optimize
