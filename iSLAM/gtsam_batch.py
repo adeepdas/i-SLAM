@@ -49,29 +49,24 @@ def batch_optimization(frames: List[dict]) -> np.ndarray:
     imu_noise = gtsam.noiseModel.Gaussian.Covariance(np.diag(imu_cov))
     
     # Add prior factor for first pose
-    R = vo_transforms[0, :3, :3]
-    t = vo_transforms[0, :3, -1]
-    pose = gtsam.Pose3(gtsam.Rot3(R), gtsam.Point3(t))
+    pose = gtsam.Pose3()
     graph.add(gtsam.PriorFactorPose3(0, pose, prior_noise))
     initial_values.insert(0, pose)
     
     # Add factors for all poses
     print("Adding factors to graph.")
-    for t in range(1, len(vo_transforms)):
-        # Add visual odometry factor
+    for t in range(1, len(vo_transforms)):        
+        # Add IMU factor
+        R_imu = imu_orientations[t]
+        t_imu = imu_positions[t]
+        pose_imu = gtsam.Pose3(gtsam.Rot3(R_imu), gtsam.Point3(t_imu))
+        graph.add(gtsam.BetweenFactorPose3(t-1, t, pose_imu, imu_noise))
+        
+        # Set initial value for optimization
+        # set initial pose from visual odometry
         R_vo = vo_transforms[t, :3, :3]
         t_vo = vo_transforms[t, :3, -1]
         pose_vo = gtsam.Pose3(gtsam.Rot3(R_vo), gtsam.Point3(t_vo))
-        graph.add(gtsam.BetweenFactorPose3(t-1, t, pose_vo, vo_noise))
-        
-        # Add IMU factor
-        # R_imu = imu_orientations[t]
-        # t_imu = imu_positions[t]
-        # pose_imu = gtsam.Pose3(gtsam.Rot3(R_imu), gtsam.Point3(t_imu))
-        # graph.add(gtsam.BetweenFactorPose3(t-1, t, pose_imu, imu_noise))
-        
-        # Set initial value for optimization
-        # make init pose from identity
         initial_values.insert(t, pose_vo)
     
     # Optimize
@@ -90,7 +85,7 @@ def batch_optimization(frames: List[dict]) -> np.ndarray:
         t = pose[-3:]
         T = np.eye(4)
         T[:3, :3] = R
-        T[:3, 3] = t
+        T[:3, -1] = t
         refined_transforms.append(T)
     
     return np.array(refined_transforms)
@@ -104,5 +99,5 @@ if __name__ == "__main__":
     
     # Visualize results
     orientations = refined_transforms[:, :3, :3]
-    positions = refined_transforms[:, :3, 3]
+    positions = refined_transforms[:, :3, -1]
     animate_trajectory(orientations, positions)

@@ -3,7 +3,7 @@ import fit_transform3D as fit_transform3D
 import visualization as visualization
 import numpy as np
 import cv2
-from typing import List, Tuple
+from typing import List
 
 
 def depth_to_pointcloud(depth, fx, fy, cx, cy):
@@ -45,7 +45,7 @@ def extract_visual_odometry(frames: List[dict],
                             ransac_threshold: float = 0.05,
                             ransac_iterations: int = 500):
     """
-    Extract relative poses from visual odometry using feature matching and RANSAC.
+    Extract poses from visual odometry using feature matching and RANSAC.
     
     Args:
         frames (List[dict]): List of frames containing RGB and depth images with camera parameters
@@ -107,7 +107,7 @@ def extract_visual_odometry(frames: List[dict],
             
             # estimate transform using RANSAC
             T = fit_transform3D.ransac(Q, P, threshold=ransac_threshold, max_iterations=ransac_iterations)
-            transforms.append(T)
+            transforms.append(transforms[-1] @ T)
             
         except Exception as e:
             print(f"Error processing frame {t}: {str(e)}")
@@ -125,10 +125,6 @@ if __name__ == "__main__":
     
     # extract visual odometry poses
     transforms = extract_visual_odometry(frames)
-
-    # convert relative poses to absolute poses
-    for i in range(1, len(transforms)):
-        transforms[i] = transforms[i-1] @ transforms[i]
     
     # visualize trajectory
     orientations = transforms[:, :3, :3]
