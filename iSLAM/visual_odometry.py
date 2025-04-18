@@ -121,7 +121,7 @@ def extract_visual_odometry(frames: List[dict],
 if __name__ == "__main__":
     np.random.seed(42) 
 
-    frames = np.load('data/rectangle_vertical.npy', allow_pickle=True)
+    frames = np.load('data/v2/video_data_rectangle.npy', allow_pickle=True)
     
     # extract visual odometry poses
     transforms = extract_visual_odometry(frames)

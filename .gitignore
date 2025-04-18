@@ -71,3 +71,5 @@ testclip.h264
 /venv
 
 data/
+
+.DS_Store
