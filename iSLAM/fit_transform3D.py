@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 def icp(P, Q, max_iter=10, tol=1e-6):
     """
-    Estimate SE(3) transformation using Lie algebra optimization
+    Estimate SE(3) transformation from @P to @Q using Lie algebra optimization
     (Gauss-Newton with incremental accumulation)
 
     Args:
