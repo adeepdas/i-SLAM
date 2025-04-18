@@ -49,9 +49,7 @@ def batch_optimization(frames: List[dict]) -> np.ndarray:
     imu_noise = gtsam.noiseModel.Gaussian.Covariance(np.diag(imu_cov))
     
     # Add prior factor for first pose
-    R = vo_transforms[0, :3, :3]
-    t = vo_transforms[0, :3, -1]
-    pose = gtsam.Pose3(gtsam.Rot3(R), gtsam.Point3(t))
+    pose = gtsam.Pose3()
     graph.add(gtsam.PriorFactorPose3(0, pose, prior_noise))
     initial_values.insert(0, pose)
     
@@ -65,14 +63,14 @@ def batch_optimization(frames: List[dict]) -> np.ndarray:
         graph.add(gtsam.BetweenFactorPose3(t-1, t, pose_vo, vo_noise))
         
         # Add IMU factor
-        # R_imu = imu_orientations[t]
-        # t_imu = imu_positions[t]
-        # pose_imu = gtsam.Pose3(gtsam.Rot3(R_imu), gtsam.Point3(t_imu))
-        # graph.add(gtsam.BetweenFactorPose3(t-1, t, pose_imu, imu_noise))
+        R_imu = imu_orientations[t]
+        t_imu = imu_positions[t]
+        pose_imu = gtsam.Pose3(gtsam.Rot3(R_imu), gtsam.Point3(t_imu))
+        graph.add(gtsam.BetweenFactorPose3(t-1, t, pose_imu, imu_noise))
         
         # Set initial value for optimization
         # make init pose from identity
-        initial_values.insert(t, pose_vo)
+        initial_values.insert(t, gtsam.Pose3())
     
     # Optimize
     print("Optimizing pose graph.")
