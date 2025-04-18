@@ -3,7 +3,7 @@ import fit_transform3D as fit_transform3D
 import visualization as visualization
 import numpy as np
 import cv2
-from typing import List, Tuple
+from typing import List
 
 
 def depth_to_pointcloud(depth, fx, fy, cx, cy):
