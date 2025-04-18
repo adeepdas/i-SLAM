@@ -88,6 +88,9 @@ def integrate_imu_state(v, omega, a, dt, g):
     Returns:
         (R_next, v_next, p_next) (tuple): the next state
     """
+    if dt > 0.5 or dt < 0 or np.isinf(dt):
+        # data corruption 
+        dt = 0
     phi = omega * dt
 
     Gamma0_val = Gamma0(phi)
@@ -151,22 +154,15 @@ def read_imu_data(frames):
         acc_data (np.ndarray): Accelerometer data of shape (N, 3)
         gyro_data (np.ndarray): Gyroscope data of shape (N, 3)
     """
-    T = len(frames)
-    timestamps = np.zeros(T)
-    acc_data = np.zeros((T, 3))
-    gyro_data = np.zeros((T, 3))
-    for t in range(T):
-        timestamps[t] = frames[t]['timestamp']
-        ax, ay, az = frames[t]['ax'], frames[t]['ay'], frames[t]['az']
-        gx, gy, gz = frames[t]['gx'], frames[t]['gy'], frames[t]['gz']
-        acc_data[t] = np.array([ax, ay, az]) * G
-        gyro_data[t] = np.array([gx, gy, gz])
+    timestamps = frames['timestamp']
+    acc_data = frames['acc'] * G
+    gyro_data = frames['gyro']
     return timestamps, acc_data, gyro_data
 
 
 if __name__ == "__main__":
     # read IMU data
-    imu_file = "data/rectangle_vertical.npy"
+    imu_file = "data/v2/imu_data_rectangle.npy"
     frames = np.load(imu_file, allow_pickle=True)
     timestamps, acc_data, gyro_data = read_imu_data(frames)
 
