@@ -121,7 +121,7 @@ class BoWMatcher:
         # Rebuild KDTree from updated BoW matrix
         self.kdtree = KDTree(np.array(self.bow_matrix))
     
-    def find_loop_candidate_kdtree(self, bow_current, current_index, min_gap=40, sim_thresh=0.88, top_k=10):
+    def find_loop_candidate_kdtree(self, bow_current, current_index, min_gap=40, sim_thresh=0.87, top_k=10):
         """
         Searches for loop closure candidates using KDTree and cosine similarity.
         
@@ -169,14 +169,14 @@ if __name__ == "__main__":
     np.random.seed(42)
 
     # Load frame paths from npy file
-    frames = np.load('datav2/rectangle_vertical.npy', allow_pickle=True)
+    frames = np.load('video_data_munger_loop2.npy', allow_pickle=True)
 
     # Initialize matcher
     matcher = BoWMatcher(vocab_size=1000)
 
     # Extract descriptors for vocabulary training (use first 10 frames)
     descriptor_list = []
-    for t in range(10):
+    for t in range (0, len(frames), 50):
         #print("loop 1 - frame:", t)
         rgb_frame = rotate_frame(frames[t])
         kp, des = matcher.extract_orb_features(rgb_frame)
@@ -208,18 +208,3 @@ if __name__ == "__main__":
             draw_matches(img1, img2, pts1, pts2)            
                 
             print(f"[Frame {t}] BoW cosine similarity: {score:.4f}")
-
-            
-            
-
-            # bow1 = matcher.compute_bow_descriptor(img1)
-            # bow2 = matcher.compute_bow_descriptor(img2)
-            # if bow1 is not None and bow2 is not None:
-            #     similarity = matcher.compare_bow(bow1, bow2)
-            #     print(f"[Frame {t}] BoW cosine similarity: {similarity:.4f}")
-
-            #     if len(pts1) > 0:
-            #         draw_matches(img1, img2, pts1, pts2)
-
-            # else:
-            #     print(f"[Frame {t}] Could not compute BoW descriptor.")
