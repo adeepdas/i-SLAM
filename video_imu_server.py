@@ -5,50 +5,70 @@ import cv2
 import h264decoder  # Import the decoder from the cloned repository
 import threading
 import queue
+from datetime import datetime
 
 START_MARKER = b'\xAB\xCD\xEF\x01'  # 4-byte unique identifier
-HEADER_SIZE = 28  # 4 (marker) + 8 (timestamp) + 4 (video size) + 4 (depth size) + 4 (intrinsic size) + 4 (imu size)
+VIDEO_HEADER_SIZE = 24  # 4 (marker) + 8 (timestamp) + 4 (video size) + 4 (depth size) + 4 (intrinsic size)
+IMU_PACKET_SIZE =  60  # 4 header + 8 timestamp + 8 accX + 8 accY + 8 accZ + 8 gyroX + 8 gyroY + 8 gyroZ 
 
 # Server Config
-ALL_DATA_PORT = 25005
+VIDEO_PORT = 25005
+IMU_PORT = 13005
 
 DEPTH_HEIGHT = 180
 DEPTH_WIDTH = 320
 
 HOST = '0.0.0.0'  # Listen on all interfaces
 
-DEBUG_FRAME_COUNTER = 120
+SEONDS_TO_RECORD = 20
+IMU_FRAME_RATE = 100
+VIDEO_FRAME_RATE = 30
+
+DEBUG_FRAME_COUNTER_VIDEO = SEONDS_TO_RECORD * VIDEO_FRAME_RATE
+DEBUG_FRAME_COUNTER_IMU = SEONDS_TO_RECORD * IMU_FRAME_RATE 
+
 
 video_frame_queue = queue.Queue(maxsize=10)
 depth_frame_queue = queue.Queue(maxsize=10)
 
 # --- Global variables for recording frames ---
 # Define a structured dtype for each frame
-frame_dtype = np.dtype([
+video_frame = np.dtype([
     ('timestamp', np.float64),
     ('fx', np.float32),
     ('fy', np.float32),
     ('cx', np.float32),
     ('cy', np.float32),
-    ('ax', np.float64),
-    ('ay', np.float64),
-    ('az', np.float64),
-    ('gx', np.float64),
-    ('gy', np.float64),
-    ('gz', np.float64),
     ('bgr', np.uint8, (180, 320, 3)),      # 320x180 BGR image
     ('depth', np.float16, (180, 320))      # 320x180 depth image in raw float16
 ])
 
-# Pre-allocate an array for 10 frames
-recorded_frames = np.empty(DEBUG_FRAME_COUNTER, dtype=frame_dtype)
-recorded_count = 0
-file_written = False  # To ensure file write happens only once
+imu_frame = np.dtype([
+    ('timestamp', np.float64),
+    ('acc', np.float64, (3,)),    # 3D accelerometer data
+    ('gyro', np.float64, (3,)),   # 3D gyroscope data
+])
 
-def write_frames_to_file():
-    # This function writes the recorded_frames array to a file.
-    np.save('recorded_frames.npy', recorded_frames)
-    print("Recorded frames saved to recorded_frames.npy")
+
+# Pre-allocate an array for 10 frames
+recorded_frames_video = np.empty(DEBUG_FRAME_COUNTER_VIDEO, dtype=video_frame)
+recorded_frames_imu = np.empty(DEBUG_FRAME_COUNTER_IMU, dtype=imu_frame)
+
+recorded_count_video = 0
+recorded_count_imu = 0
+
+file_written_video = False  # To ensure file write happens only once
+file_written_imu = False  # To ensure file write happens only once
+
+def write_video_frames_to_file():
+    # Save the full structured array as a .npy
+    filename = f"video_data_{datetime.now().strftime('%Y%m%d_%H%M')}.npy"
+    np.save(filename, recorded_frames_video)
+
+def write_imu_frames_to_file():
+    # Save the full structured array as a .npy
+    filename = f"imu_data_{datetime.now().strftime('%Y%m%d_%H%M')}.npy"
+    np.save(filename, recorded_frames_imu)
 
 def get_local_ip():
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -64,36 +84,36 @@ def extract_packet(buffer):
     if marker_index == -1:
         return None, buffer  # No start marker found
 
-    if len(buffer) < marker_index + HEADER_SIZE:
+    if len(buffer) < marker_index + VIDEO_HEADER_SIZE:
         return None, buffer  # Not enough data for a complete header
 
     # Extract header information
-    header = buffer[marker_index:marker_index + HEADER_SIZE]
-    timestamp, video_size, depth_size, intrinsic_size, imu_size = struct.unpack("dIIII", header[4:HEADER_SIZE])
-    frame_size = video_size + depth_size + intrinsic_size + imu_size
+    header = buffer[marker_index:marker_index + VIDEO_HEADER_SIZE]
+    timestamp, video_size, depth_size, intrinsic_size = struct.unpack("dIII", header[4:VIDEO_HEADER_SIZE])
+    frame_size = video_size + depth_size + intrinsic_size
 
     # Check if the entire frame data is available
-    if len(buffer) < marker_index + HEADER_SIZE + frame_size:
+    if len(buffer) < marker_index + VIDEO_HEADER_SIZE + frame_size:
         return None, buffer  # Incomplete frame data
     
     # Extract video data
-    video_data = buffer[marker_index + HEADER_SIZE:marker_index + HEADER_SIZE + video_size]
+    video_data = buffer[marker_index + VIDEO_HEADER_SIZE:marker_index + VIDEO_HEADER_SIZE + video_size]
 
     # Extract depth data
-    depth_data = buffer[marker_index + HEADER_SIZE + video_size:marker_index + HEADER_SIZE + video_size + depth_size]
+    depth_data = buffer[marker_index + VIDEO_HEADER_SIZE + video_size:marker_index + VIDEO_HEADER_SIZE + video_size + depth_size]
 
     # Extract intrinsic data
-    intrinsic_buffer = buffer[marker_index + HEADER_SIZE + video_size + depth_size:marker_index + HEADER_SIZE + video_size + depth_size + intrinsic_size]
+    intrinsic_buffer = buffer[marker_index + VIDEO_HEADER_SIZE + video_size + depth_size:marker_index + VIDEO_HEADER_SIZE + video_size + depth_size + intrinsic_size]
     fx, fy, cx, cy = struct.unpack("ffff", intrinsic_buffer) 
 
-    # Extract IMU data
-    imu_buffer = buffer[marker_index + HEADER_SIZE + video_size + depth_size + intrinsic_size:marker_index + HEADER_SIZE + frame_size]
-    r_ax, r_ay, r_az, r_gx, r_gy, r_gz, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z = struct.unpack("dddddddddddd", imu_buffer)
+    # # Extract IMU data
+    # imu_buffer = buffer[marker_index + HEADER_SIZE + video_size + depth_size + intrinsic_size:marker_index + HEADER_SIZE + frame_size]
+    # r_ax, r_ay, r_az, r_gx, r_gy, r_gz, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z = struct.unpack("dddddddddddd", imu_buffer)
     
-    remaining_buffer = buffer[marker_index + HEADER_SIZE + frame_size:]
-    return (timestamp, video_data, depth_data, fx, fy, cx, cy,
-            r_ax, r_ay, r_az, r_gx, r_gy, r_gz,
-            acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z), remaining_buffer
+    remaining_buffer = buffer[marker_index + VIDEO_HEADER_SIZE + frame_size:]
+    return (timestamp, video_data, depth_data, fx, fy, cx, cy), remaining_buffer
+            # r_ax, r_ay, r_az, r_gx, r_gy, r_gz,
+            # acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z), remaining_buffer
 
 def buffer_to_depth(frame_data):
     """
@@ -102,11 +122,7 @@ def buffer_to_depth(frame_data):
     """
     depth_map = np.frombuffer(frame_data, dtype=np.float16).copy()
     depth_map = depth_map.reshape((DEPTH_HEIGHT, DEPTH_WIDTH))  # Adjust shape as necessary
-    # print(f"Depth map shape: {depth_map.shape}")
-    # print("Min depth:", np.min(depth_map))
-    # print("Max depth:", np.max(depth_map))
-    # print("NaNs count:", np.isnan(depth_map).sum())
-    # print("Infs count:", np.isinf(depth_map).sum())
+
 
     # get rid of NaN and Inf values
     depth_map[np.isnan(depth_map)] = 0
@@ -138,8 +154,55 @@ def display_loop():
 
     cv2.destroyAllWindows()
 
-def receive_data(host, port):
-    global recorded_count, file_written
+def receive_imu_data(host, port):
+    global recorded_count_imu, file_written_imu
+    # create tcp socket
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind((host, port))
+    server_socket.listen(1)
+    print(f"Starting server on {host}:{port}, waiting for a connection...")
+    connection, client_address = server_socket.accept()
+    print(f"Connection from {client_address}")
+    try:
+        while True:
+            data_in = connection.recv(IMU_PACKET_SIZE)
+            if not data_in:
+                break
+            if len(data_in) == IMU_PACKET_SIZE:
+                # Extract data
+                timestamp, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z  = struct.unpack("ddddddd", data_in[4:])
+
+                if recorded_count_imu < DEBUG_FRAME_COUNTER_IMU:
+                    recorded_frames_imu[recorded_count_imu]['timestamp'] = timestamp
+                    recorded_frames_imu[recorded_count_imu]['acc'] = [acc_x, acc_y, acc_z]
+                    recorded_frames_imu[recorded_count_imu]['gyro'] = [gyro_x, gyro_y, gyro_z]
+                    print(f"IMU frame {recorded_count_imu+1}/{DEBUG_FRAME_COUNTER_IMU}")
+                    recorded_count_imu += 1
+
+                    # When 10 frames are recorded, write them to file in a separate thread
+                    if recorded_count_imu == DEBUG_FRAME_COUNTER_IMU and not file_written_imu:
+                        file_written_imu = True
+                        threading.Thread(target=write_imu_frames_to_file).start()   
+
+                print("IMU Data: @", timestamp)
+                print("Acc Data:")
+                print(f"{'Acc_X':<10}{'Acc_Y':<10}{'Acc_Z':<10}")  
+                print(f"{acc_x:<10.6f}{acc_y:<10.6f}{acc_z:<10.6f}") 
+                print("\n")
+                print("Gyro Data:")
+                print(f"{'Gyro_X':<10}{'Gyro_Y':<10}{'Gyro_Z':<10}")
+                print(f"{gyro_x:<10.6f}{gyro_y:<10.6f}{gyro_z:<10.6f}")
+                print("\n")
+
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        connection.close()
+        print("Connection closed")
+
+
+def receive_video(host, port):
+    global recorded_count_video, file_written_video
     # Create and bind a TCP socket
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((host, port))
@@ -150,7 +213,6 @@ def receive_data(host, port):
     print(f"Connection from {client_address}")
 
     # Initialize H264 decoder
-    # YCBCr to RGB conversion
     decoder = h264decoder.H264Decoder()
 
     # Buffer to accumulate received data
@@ -169,9 +231,7 @@ def receive_data(host, port):
                 if extracted_packet is None:
                     break  # Wait for more data
 
-                (timestamp, video_data, depth_data, fx, fy, cx, cy,
-                 r_ax, r_ay, r_az, r_gx, r_gy, r_gz,
-                 acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z) = extracted_packet
+                (timestamp, video_data, depth_data, fx, fy, cx, cy) = extracted_packet
 
 
                 # Process depth image: get the raw float16 depth values
@@ -180,13 +240,14 @@ def receive_data(host, port):
                     depth_frame_queue.put(depth_img)
 
                 # Decode H264 frame and process each decoded frame
+                # YCbCr to RGB conversion
                 framedatas = decoder.decode(video_data)
                 for framedata in framedatas:
                     (frame, w, h, ls) = framedata
                     if frame is not None:
                         # Convert the frame to a numpy array and resize to 320x180
                         frame_array_video = np.frombuffer(frame, dtype=np.ubyte).reshape((h, ls // 3, 3))
-                        frame_resized = cv2.resize(frame_array_video, (320, 180))
+                        frame_resized = cv2.resize(frame_array_video, (DEPTH_WIDTH, DEPTH_HEIGHT))
 
                         # rgb to bgr, cv2 uses BGR by default
                         bgr_frame = cv2.cvtColor(frame_resized, cv2.COLOR_RGB2BGR)
@@ -195,28 +256,21 @@ def receive_data(host, port):
                             video_frame_queue.put(bgr_frame)
 
                         # Record the frame if DEBUG_FRAME_COUNTER is not reached
-                        if recorded_count < DEBUG_FRAME_COUNTER:
-                            recorded_frames[recorded_count]['timestamp'] = timestamp
-                            recorded_frames[recorded_count]['fx'] = fx
-                            recorded_frames[recorded_count]['fy'] = fy
-                            recorded_frames[recorded_count]['cx'] = cx
-                            recorded_frames[recorded_count]['cy'] = cy
-                            # Use the acceleration and gyro data (acc_x, acc_y, acc_z and gyro_x, gyro_y, gyro_z)
-                            recorded_frames[recorded_count]['ax'] = acc_x
-                            recorded_frames[recorded_count]['ay'] = acc_y
-                            recorded_frames[recorded_count]['az'] = acc_z
-                            recorded_frames[recorded_count]['gx'] = gyro_x
-                            recorded_frames[recorded_count]['gy'] = gyro_y
-                            recorded_frames[recorded_count]['gz'] = gyro_z
-                            recorded_frames[recorded_count]['bgr'] = bgr_frame
-                            recorded_frames[recorded_count]['depth'] = depth_raw
-                            print(f"Recorded frame {recorded_count+1}/10")
-                            recorded_count += 1
+                        if recorded_count_video < DEBUG_FRAME_COUNTER_VIDEO:
+                            recorded_frames_video[recorded_count_video]['timestamp'] = timestamp
+                            recorded_frames_video[recorded_count_video]['fx'] = fx
+                            recorded_frames_video[recorded_count_video]['fy'] = fy
+                            recorded_frames_video[recorded_count_video]['cx'] = cx
+                            recorded_frames_video[recorded_count_video]['cy'] = cy
+                            recorded_frames_video[recorded_count_video]['bgr'] = bgr_frame
+                            recorded_frames_video[recorded_count_video]['depth'] = depth_raw
+                            print(f"VIDEO frame {recorded_count_video+1}/{DEBUG_FRAME_COUNTER_VIDEO}")
+                            recorded_count_video += 1
 
                             # When 10 frames are recorded, write them to file in a separate thread
-                            if recorded_count == DEBUG_FRAME_COUNTER and not file_written:
-                                file_written = True
-                                threading.Thread(target=write_frames_to_file).start()
+                            if recorded_count_video == DEBUG_FRAME_COUNTER_VIDEO and not file_written_video:
+                                file_written_video = True
+                                threading.Thread(target=write_video_frames_to_file).start()
                     else:
                         print('frame is None')
                         break
@@ -234,12 +288,16 @@ if __name__ == "__main__":
     print(f"Server IP address: {ip_address}")
     
     # Create and start the receive_data thread
-    receive_data_thread = threading.Thread(target=receive_data, args=(HOST, ALL_DATA_PORT))
-    receive_data_thread.start()
+    receive_video_thread = threading.Thread(target=receive_video, args=(HOST, VIDEO_PORT))
+    receive_video_thread.start()
+
+    receive_imu_thread = threading.Thread(target=receive_imu_data, args=(HOST, IMU_PORT))
+    receive_imu_thread.start()
 
     # Main thread handles the GUI
     display_loop()
 
     # Wait for the data receiving thread to finish
-    receive_data_thread.join()
+    receive_imu_thread.join()
+    receive_video_thread.join()
     print("Server shutting down.")
