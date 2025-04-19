@@ -58,7 +58,6 @@ def batch_optimization(imu_data, video_data, mini_batch_size=10):
     graph.add(gtsam.PriorFactorPose3(pose_key(0), identity_pose, prior_noise))
     graph.add(gtsam.PriorFactorVector(vel_key(0), np.zeros(3), gtsam.noiseModel.Isotropic.Sigma(3, 1e-2)))
     graph.add(gtsam.PriorFactorConstantBias(bias_key(0), initial_bias, gtsam.noiseModel.Isotropic.Sigma(6, 1e-3)))
-    isam.update(graph, initial_values)
 
     print("Adding factors to graph...")
     t = 1
@@ -66,9 +65,6 @@ def batch_optimization(imu_data, video_data, mini_batch_size=10):
     num_measurements = 0
     vo_prev = np.eye(4)
     for i in range(1, len(vo_timestamps)):
-        graph = gtsam.NonlinearFactorGraph()
-        initial_values = gtsam.Values()
-
         # IMU preintegration
         while imu_index < len(imu_timestamps) and imu_timestamps[imu_index] < vo_timestamps[i]:
             dt = imu_timestamps[imu_index] - imu_timestamps[imu_index-1]
@@ -76,7 +72,8 @@ def batch_optimization(imu_data, video_data, mini_batch_size=10):
                 preint_imu.integrateMeasurement(acc_data[imu_index-1], gyro_data[imu_index-1], dt)
                 num_measurements += 1
             imu_index += 1
-        if num_measurements == 0:
+        # thoeretically, we should have at least 3 IMU measurements between each VO frame
+        if num_measurements < 3:
             print(f"No IMU data for frame: {i}")
             # if no IMU data between frames, track vo transforms
             vo_prev = vo_prev @ vo_transforms[i]
@@ -116,8 +113,12 @@ def batch_optimization(imu_data, video_data, mini_batch_size=10):
         preint_imu.resetIntegration()
 
         if t % mini_batch_size == 0 or i == len(vo_timestamps)-1:
+            print("Updating graph...")
             isam.update(graph, initial_values)
             result = isam.calculateEstimate()
+            # create new graph for next iteration
+            graph = gtsam.NonlinearFactorGraph()
+            initial_values = gtsam.Values()
     
     print("Extracting optimized poses...")
     refined_poses = gtsam.utilities.extractPose3(result)
@@ -136,10 +137,10 @@ def batch_optimization(imu_data, video_data, mini_batch_size=10):
 if __name__ == "__main__":
     np.random.seed(42)  # For reproducibility
     
-    imu_data = np.load('data/v2/imu_data_straight_line.npy', allow_pickle=True)
-    video_data = np.load('data/v2/video_data_straight_line.npy', allow_pickle=True)
+    imu_data = np.load('data/v2/imu_data_rectangle.npy', allow_pickle=True)
+    video_data = np.load('data/v2/video_data_rectangle.npy', allow_pickle=True)
     
-    refined_transforms = batch_optimization(imu_data, video_data, mini_batch_size=1)
+    refined_transforms = batch_optimization(imu_data, video_data, mini_batch_size=100)
     
     print("Animating trajectory...")
     orientations = refined_transforms[:, :3, :3]
