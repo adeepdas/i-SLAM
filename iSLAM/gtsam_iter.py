@@ -3,7 +3,7 @@ import gtsam
 from gtsam import symbol
 from visual_odometry import extract_visual_odometry
 from imu_integration import read_imu_data
-from visualization import animate_trajectory
+from visualization import animate_trajectory, plot_trajectory
 
 def graph_optimization(imu_data, video_data, mini_batch_size=10):
     """
@@ -119,6 +119,8 @@ def graph_optimization(imu_data, video_data, mini_batch_size=10):
             # create new graph for next iteration
             graph = gtsam.NonlinearFactorGraph()
             initial_values = gtsam.Values()
+
+    print("True batch size: ", t)
     
     print("Extracting optimized poses...")
     refined_poses = gtsam.utilities.extractPose3(result)
@@ -137,12 +139,13 @@ def graph_optimization(imu_data, video_data, mini_batch_size=10):
 if __name__ == "__main__":
     np.random.seed(42)  # For reproducibility
     
-    imu_data = np.load('data/v2/imu_data_rectangle.npy', allow_pickle=True)
-    video_data = np.load('data/v2/video_data_rectangle.npy', allow_pickle=True)
+    imu_data = np.load('data/munger/imu_data_munger_big.npy', allow_pickle=True)
+    video_data = np.load('data/munger/video_data_munger_big.npy', allow_pickle=True)
     
     refined_transforms = graph_optimization(imu_data, video_data, mini_batch_size=100)
     
     print("Animating trajectory...")
     orientations = refined_transforms[:, :3, :3]
     positions = refined_transforms[:, :3, -1]
-    animate_trajectory(orientations, positions)
+    # animate_trajectory(orientations, positions, interval=1)
+    plot_trajectory(orientations, positions)

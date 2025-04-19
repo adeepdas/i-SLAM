@@ -90,3 +90,34 @@ def plot_pointclouds(pc1, pc2):
     ax.set_ylabel('Y (m)')
     ax.set_zlabel('Z (m)')
     plt.show()
+
+def plot_trajectory(orientations, positions):
+    """
+    Plot a static trajectory showing positions and orientations in 2D.
+    This function plots the x-z plane, not the y-z plane.
+    
+    Args:
+        orientations (np.ndarray): rotation matrices of shape (N, 3, 3)
+        positions (np.ndarray): position vectors of shape (N, 3)
+    """
+    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.set_xlabel("X (m)")
+    ax.set_ylabel("Z (m)")
+    ax.set_title("Trajectory")
+    ax.axis("equal")
+    ax.grid(True)
+    
+    # Plot all positions as blue dots and line
+    ax.plot(positions[:, 0], positions[:, 2], 'b-', label='Trajectory')
+    ax.plot(positions[:, 0], positions[:, 2], 'bo', markersize=3)
+    
+    # Use a mutable container to store the arrow handle
+    arrow_handle = [None]
+    
+    # Plot orientation arrows at regular intervals
+    arrow_interval = max(1, len(positions) // 10)  # Show about 10 arrows
+    for i in range(0, len(positions), arrow_interval):
+        create_plot(orientations[i], positions[i], i, arrow_handle)
+    
+    ax.legend()
+    plt.show()
