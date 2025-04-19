@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 
+
 # ------ Do ORB Feature Matching between two RGB numpy arrays ------
 
 # Input: 2 RGB numpy arrays
@@ -65,13 +66,16 @@ def feature_extraction(rgb_img_P, rgb_img_Q):
 
 
 if __name__ == "__main__":
+
+    np.random.seed(42) 
+
+    frames = np.load('datav2/video_data_rectangle.npy', allow_pickle=True)
   
-  # test if my bullshit works
-  img1 = cv2.imread('test_images/test51.jpg', cv2.IMREAD_COLOR)
-  img2 = cv2.imread('test_images/test52.jpg', cv2.IMREAD_COLOR)
+    for t in range(1, len(frames)-1):
+        frame_prev = frames[t]
+        frame_curr = frames[t+1]
+        img1 = cv2.imread(frame_prev, cv2.IMREAD_COLOR)
+        img2 = cv2.imread(frame_curr, cv2.IMREAD_COLOR)
 
-  # Preform Feature Extraction
-  img1_pts, img2_pts = feature_extraction(img1, img2)
-
-  # Command to Run from main i-SLAM file: 
-  #   python3 iSLAM/orb.py  
+        # Preform Feature Extraction
+        img1_pts, img2_pts = feature_extraction(img1, img2)

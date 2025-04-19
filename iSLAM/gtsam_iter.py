@@ -1,13 +1,15 @@
 import numpy as np
 import gtsam
 from typing import List, Tuple
-from visual_odometry import extract_visual_odometry
+from visual_odometry import extract_visual_odometry, rotate_frame
 from imu_integration import integrate_imu_trajectory, read_imu_data
 from visualization import animate_trajectory
+import cv2
+from bow import BoWMatcher
 
 # create a new graph every time and optimize incrementally 
 
-def gtsam_optimization(frames: List[dict]) -> Tuple[np.ndarray, np.ndarray]:
+def gtsam_optimization(frames: List[dict], scale_factor: float = 1/6, vocab_path="vocab.pkl") -> np.ndarray:
     """
     Refine SLAM trajectory using GTSAM with visual odometry and IMU data.
     
@@ -21,6 +23,7 @@ def gtsam_optimization(frames: List[dict]) -> Tuple[np.ndarray, np.ndarray]:
     print("Performing visual odometry.")
     # Extract visual odometry poses
     vo_transforms = extract_visual_odometry(frames)
+    #vo_transforms = np.eye(4)
     
     print("Performing IMU integration.")
     # Extract IMU poses
@@ -42,21 +45,35 @@ def gtsam_optimization(frames: List[dict]) -> Tuple[np.ndarray, np.ndarray]:
     # IMU noise (using same structure as prior but with different values)
     imu_cov = np.array([0.05, 0.05, 0.05, 0.05, 0.05, 0.05])
     imu_noise = gtsam.noiseModel.Gaussian.Covariance(np.diag(imu_cov))
+
+    loop_noise = np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
     
-    for idx in range(0, len(vo_transforms)-1):
+    # 3) Initialize BoW matcher
+    bow_matcher = BoWMatcher(vocab_path=vocab_path)
+    bow_matcher.load_vocab()
+
+    # 4) Keyframe DB
+    keyframe_imgs  = []
+    bow_database   = []
+    keyframe_ids   = []
+
+    initial_values = gtsam.Values()
+
+    # for idx in range(0, len(vo_transforms)-1):
+    for idx in range(0, 5):
         print("Loop 1 - Frame:", idx)
 
         # Create factor graph for this frame
         graph = gtsam.NonlinearFactorGraph()
-        initial_values = gtsam.Values()
         
         if idx == 0:
             # Add prior factor for first pose
             R = vo_transforms[idx, :3, :3]
             t = vo_transforms[idx, :3, -1]
-            pose = gtsam.Pose3(gtsam.Rot3(R), gtsam.Point3(t))
-            graph.add(gtsam.PriorFactorPose3(0, pose, prior_noise))
-            initial_values.insert(0, pose)
+            pose_vo = gtsam.Pose3(gtsam.Rot3(R), gtsam.Point3(t))
+            graph.add(gtsam.PriorFactorPose3(0, pose_vo, prior_noise))
+            if not initial_values.exists(0):
+                initial_values.insert(0, pose_vo)
         else:
             # Add visual odometry factor
             R_vo = vo_transforms[idx, :3, :3]
@@ -71,7 +88,50 @@ def gtsam_optimization(frames: List[dict]) -> Tuple[np.ndarray, np.ndarray]:
             graph.add(gtsam.BetweenFactorPose3(idx-1, idx, pose_imu, imu_noise))
             
             # Set initial value
-            initial_values.insert(idx, gtsam.Pose3())
+            if not initial_values.exists(idx):
+                initial_values.insert(idx, gtsam.Pose3())
+
+        curr_img, _ = rotate_frame(frames[idx])
+        bow_curr = bow_matcher.compute_bow_descriptor(curr_img)
+        make_kf = False
+
+        # Make Camera Intrinsics matrix
+        sx = scale_factor
+        sy = scale_factor
+        # print(type(frames[idx]['fx']))
+        K = np.array([[frames[idx]['fx'] * sx, 0, frames[idx]['cx'] * sx],
+                      [0, frames[idx]['fy'] * sy, frames[idx]['cy'] * sy] ,
+                      [0, 0, 1]])
+        
+        if idx == 0:
+            make_kf = True
+
+        else:
+            sim_last = bow_matcher.compare_bow(bow_curr, bow_database[-1])
+            if sim_last < 0.7:
+                make_kf = True
+        
+        if make_kf:
+            k_id = idx  # use idx as the keyframe ID
+            keyframe_ids.append(k_id)
+            keyframe_imgs.append(curr_img)
+            bow_database.append(bow_curr)
+            if not initial_values.exists(k_id):
+                initial_values.insert(k_id, pose_vo)
+
+            # c) Loop‐closure search against previous keyframes
+            for k_i, bow_old in zip(keyframe_ids[:-1], bow_database[:-1]):
+                sim = bow_matcher.compare_bow(bow_curr, bow_old)
+                if sim > 0.8:
+                    # geometric verification
+                    pts_new, pts_old, _, _ = bow_matcher.match_features(curr_img, keyframe_imgs[keyframe_ids.index(k_i)])
+                    E, mask = cv2.findEssentialMat(pts_new, pts_old, K, cv2.RANSAC, 0.999, 1.0)
+                    _, R, t, mask_pose = cv2.recoverPose(E, pts_new, pts_old, K)
+                    if mask_pose.sum() / len(mask_pose) > 0.3:
+                        rel_pose = gtsam.Pose3(gtsam.Rot3(R), gtsam.Point3(t.flatten()))
+                        graph.add(gtsam.BetweenFactorPose3(k_i, k_id, rel_pose, loop_noise))
+                        print(f"  ↳ Loop closure between {k_i} ↔ {k_id}, sim={sim:.2f}")
+                        break
         
         # Update ISAM2
         isam.update(graph, initial_values)
@@ -96,7 +156,7 @@ def gtsam_optimization(frames: List[dict]) -> Tuple[np.ndarray, np.ndarray]:
 if __name__ == "__main__":
     np.random.seed(42)  # For reproducibility
     # Load data
-    frames = np.load('data/basement_rectangle_2.npy', allow_pickle=True)
+    frames = np.load('data/old_unsync_data/rectangle_vertical.npy', allow_pickle=True)
     
     # Run batch optimization
     refined_transforms = gtsam_optimization(frames)
