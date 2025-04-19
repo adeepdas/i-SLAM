@@ -17,8 +17,7 @@ def batch_optimization(imu_data, video_data):
         refined_transforms (np.ndarray): Refined transformation matrices of shape (N, 4, 4)
     """
     print("Performing visual odometry...")
-    video_timestamps = video_data['timestamp']
-    vo_transforms = extract_visual_odometry(video_data)
+    vo_timestamps, vo_transforms = extract_visual_odometry(video_data)
     
     print("Reading IMU data...")
     imu_timestamps, acc_data, gyro_data = read_imu_data(imu_data)
@@ -59,29 +58,23 @@ def batch_optimization(imu_data, video_data):
     graph.add(gtsam.PriorFactorConstantBias(bias_key(0), initial_bias, gtsam.noiseModel.Isotropic.Sigma(6, 1e-3)))
 
     print("Adding factors to graph...")
-    prev_imu_idx = 0
-    for t in range(1, len(vo_transforms)):
-        # add VO factor
-        R_vo = vo_transforms[t, :3, :3]
-        t_vo = vo_transforms[t, :3, -1]
-        pose_vo = gtsam.Pose3(gtsam.Rot3(R_vo), gtsam.Point3(t_vo))
-        graph.add(gtsam.BetweenFactorPose3(pose_key(t-1), pose_key(t), pose_vo, vo_noise))
-
-        # add IMU factor
-        preint_imu.resetIntegration()
-        i = prev_imu_idx
+    t = 1
+    imu_index = 1
+    vo_prev = np.eye(4)
+    for i in range(1, len(vo_timestamps)):
+        # IMU preintegration
         num_measurements = 0
-        while i < len(imu_timestamps) and imu_timestamps[i] <= video_timestamps[t]:
-            dt = imu_timestamps[i] - imu_timestamps[i-1] if i > 0 else 0.01
+        while imu_index < len(imu_timestamps) and imu_timestamps[imu_index] < vo_timestamps[i]:
+            dt = imu_timestamps[imu_index] - imu_timestamps[imu_index-1]
             if not np.isinf(dt) and dt > 0 and dt < 0.5:
-                preint_imu.integrateMeasurement(acc_data[i], gyro_data[i], dt)
+                preint_imu.integrateMeasurement(acc_data[imu_index-1], gyro_data[imu_index-1], dt)
                 num_measurements += 1
-            i += 1
+            imu_index += 1
         if num_measurements == 0:
-            print(f"No IMU data for frame: {t}")
-            # add indentity constraint if no IMU data between frames to prevent unconstrained optimization
-            preint_imu.integrateMeasurement(np.zeros(3), np.zeros(3), 0.01)
-        prev_imu_idx = i
+            print(f"No IMU data for frame: {i}")
+            # if no IMU data between frames, track vo transforms
+            vo_prev = vo_prev @ vo_transforms[i]
+            continue
 
         # add IMU factor
         graph.add(gtsam.ImuFactor(
@@ -98,11 +91,22 @@ def batch_optimization(imu_data, video_data):
             gtsam.imuBias.ConstantBias(),  # delta = 0 → constant bias assumption
             bias_noise
         ))
+        
+        # add VO factor
+        vo_transform = vo_prev @ vo_transforms[i]
+        R_vo = vo_transform[:3, :3]
+        t_vo = vo_transform[:3, -1]
+        pose_vo = gtsam.Pose3(gtsam.Rot3(R_vo), gtsam.Point3(t_vo))
+        graph.add(gtsam.BetweenFactorPose3(pose_key(t-1), pose_key(t), pose_vo, vo_noise))
 
         # add initial values
         initial_values.insert(pose_key(t), identity_pose)
         initial_values.insert(vel_key(t), np.zeros(3))
         initial_values.insert(bias_key(t), initial_bias)
+
+        t += 1
+        vo_prev = np.eye(4)
+        preint_imu.resetIntegration()
     
     print("Optimizing pose graph...")
     optimizer = gtsam.GaussNewtonOptimizer(graph, initial_values)
@@ -123,8 +127,8 @@ def batch_optimization(imu_data, video_data):
     return np.array(refined_transforms)
 
 if __name__ == "__main__":
-    imu_data = np.load('data/v2/imu_data_straight_line.npy', allow_pickle=True)
-    video_data = np.load('data/v2/video_data_straight_line.npy', allow_pickle=True)
+    imu_data = np.load('data/v2/imu_data_rectangle.npy', allow_pickle=True)
+    video_data = np.load('data/v2/video_data_rectangle.npy', allow_pickle=True)
     
     refined_transforms = batch_optimization(imu_data, video_data)
     
