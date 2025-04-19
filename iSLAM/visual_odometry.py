@@ -100,10 +100,12 @@ def extract_visual_odometry(frames: List[dict],
             Q = pc_curr[matches_curr[:, 1], matches_curr[:, 0], :]
             
             # filter invalid points
-            P = P[P[:, 2] != 0]
-            Q = Q[Q[:, 2] != 0]
-            P = P[P[:, 2] > depth_threshold]
-            Q = Q[Q[:, 2] > depth_threshold]
+            valid_P = (P[:, 2] != 0) & (P[:, 2] > depth_threshold)
+            valid_Q = (Q[:, 2] != 0) & (Q[:, 2] > depth_threshold)
+            # must filter both point clouds using the same indices
+            valid_idx = valid_P & valid_Q
+            P = P[valid_idx]
+            Q = Q[valid_idx]
             
             # estimate transform using RANSAC
             T = fit_transform3D.ransac(Q, P, threshold=ransac_threshold, max_iterations=ransac_iterations)
