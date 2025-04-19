@@ -1,6 +1,6 @@
 import numpy as np
 from iSLAM.utils import skew
-from iSLAM.visualization import animate_trajectory
+from iSLAM.visualization import animate_trajectory, plot_trajectory
 
 
 G = -9.8
@@ -162,7 +162,7 @@ def read_imu_data(frames):
 
 if __name__ == "__main__":
     # read IMU data
-    imu_file = "data/v2/imu_data_rectangle.npy"
+    imu_file = "data/munger/imu_data_munger_big.npy"
     frames = np.load(imu_file, allow_pickle=True)
     timestamps, acc_data, gyro_data = read_imu_data(frames)
 
@@ -176,4 +176,5 @@ if __name__ == "__main__":
         orientations[i] = orientations[i-1] @ orientations[i]
         positions[i] = orientations[i-1] @ positions[i] + positions[i-1]
 
-    ani = animate_trajectory(orientations, positions, interval=20)
+    # animate_trajectory(orientations, positions, interval=1e-5)
+    plot_trajectory(orientations, positions)

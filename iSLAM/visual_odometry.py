@@ -3,7 +3,7 @@ import fit_transform3D as fit_transform3D
 import visualization as visualization
 import numpy as np
 import cv2
-from typing import List, Tuple
+from typing import List
 
 
 def depth_to_pointcloud(depth, fx, fy, cx, cy):
@@ -74,8 +74,8 @@ def extract_visual_odometry(frames: List[dict],
         
         # extract and match features
         matches_prev, matches_curr = orb.feature_extraction(bgr_prev, bgr_curr)
-        if matches_prev.shape[0] < min_matches:
-            print(f"Warning: Insufficient matches at frame {t} ({matches_prev.shape[0]} < {min_matches})")
+        if len(matches_prev) < min_matches:
+            print(f"Warning: Insufficient matches at frame {t} ({len(matches_prev)} < {min_matches})")
             continue
         
         # convert depth to point clouds
@@ -122,7 +122,7 @@ def extract_visual_odometry(frames: List[dict],
 if __name__ == "__main__":
     np.random.seed(42) 
 
-    frames = np.load('data/v2/video_data_rectangle.npy', allow_pickle=True)
+    frames = np.load('data/munger/video_data_munger_big.npy', allow_pickle=True)
     
     # extract visual odometry poses
     _, transforms = extract_visual_odometry(frames)
@@ -134,4 +134,5 @@ if __name__ == "__main__":
     # visualize trajectory
     orientations = transforms[:, :3, :3]
     positions = transforms[:, :3, -1]
-    visualization.animate_trajectory(orientations, positions)
+    # visualization.animate_trajectory(orientations, positions)
+    visualization.plot_trajectory(orientations, positions)
