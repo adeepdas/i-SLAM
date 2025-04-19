@@ -7,7 +7,7 @@ from visualization import animate_trajectory
 
 def graph_optimization(imu_data, video_data):
     """
-    Perform batch optimization of SLAM trajectory using GTSAM with visual odometry and IMU preintegration.
+    Perform iterative graph SLAM using GTSAM with visual odometry and IMU preintegration.
     
     Args:
         imu_data (dict): IMU data
@@ -17,8 +17,7 @@ def graph_optimization(imu_data, video_data):
         refined_transforms (np.ndarray): Refined transformation matrices of shape (N, 4, 4)
     """
     print("Performing visual odometry...")
-    video_timestamps = video_data['timestamp']
-    vo_transforms = extract_visual_odometry(video_data)
+    vo_timestamps, vo_transforms = extract_visual_odometry(video_data)
     
     print("Reading IMU data...")
     imu_timestamps, acc_data, gyro_data = read_imu_data(imu_data)
@@ -57,32 +56,24 @@ def graph_optimization(imu_data, video_data):
     isam.update(graph, initial_values)
 
     print("Iteratively optimizing...")
-    prev_imu_idx = 0
-    for t in range(1, len(vo_transforms)):
+    t = 1
+    imu_idx = 0
+    num_measurements = 0
+    for i in range(1, len(vo_timestamps)):
         graph = gtsam.NonlinearFactorGraph()
         initial_values = gtsam.Values()
-        
-        # add VO factor
-        R_vo = vo_transforms[t, :3, :3]
-        t_vo = vo_transforms[t, :3, -1]
-        pose_vo = gtsam.Pose3(gtsam.Rot3(R_vo), gtsam.Point3(t_vo))
-        graph.add(gtsam.BetweenFactorPose3(pose_key(t-1), pose_key(t), pose_vo, vo_noise))
 
-        # add IMU factor
-        preint_imu.resetIntegration()
-        i = prev_imu_idx
-        num_measurements = 0
-        while i < len(imu_timestamps) and imu_timestamps[i] <= video_timestamps[t]:
-            dt = imu_timestamps[i] - imu_timestamps[i-1] if i > 0 else 0.01
-            if not np.isinf(dt) and dt > 0 and dt < 0.5:
-                preint_imu.integrateMeasurement(acc_data[i], gyro_data[i], dt)
+        # IMU preintegration
+        while imu_idx < len(imu_timestamps) and imu_timestamps[imu_idx] <= vo_timestamps[i]:
+            dt = imu_timestamps[imu_idx] - imu_timestamps[imu_idx-1] if imu_idx > 0 else 0.01
+            if not np.isinf(dt) and dt > 0 and dt < 0.1:
+                preint_imu.integrateMeasurement(acc_data[imu_idx], gyro_data[imu_idx], dt)
                 num_measurements += 1
-            i += 1
+            imu_idx += 1
         if num_measurements == 0:
-            print(f"No IMU data for frame: {t}")
-            # add indentity constraint if no IMU data between frames to prevent unconstrained optimization
-            preint_imu.integrateMeasurement(acc_data[i-1], gyro_data[i-1], 0.01)
-        prev_imu_idx = i
+            print(f"No IMU data for frame: {i}")
+            # skip frame to prevent underconstrained optimization
+            continue
 
         # add IMU factor
         graph.add(gtsam.ImuFactor(
@@ -91,6 +82,12 @@ def graph_optimization(imu_data, video_data):
             bias_key(t-1),
             preint_imu
         ))
+
+        # add VO factor
+        R_vo = vo_transforms[i, :3, :3]
+        t_vo = vo_transforms[i, :3, -1]
+        pose_vo = gtsam.Pose3(gtsam.Rot3(R_vo), gtsam.Point3(t_vo))
+        graph.add(gtsam.BetweenFactorPose3(pose_key(t-1), pose_key(t), pose_vo, vo_noise))
 
         # add bias factor
         bias_noise = gtsam.noiseModel.Isotropic.Sigma(6, 1e-3)
@@ -108,6 +105,10 @@ def graph_optimization(imu_data, video_data):
         # update ISAM
         isam.update(graph, initial_values)
         result = isam.calculateEstimate()
+
+        t += 1
+        preint_imu.resetIntegration()
+        num_measurements = 0
     
     print("Extracting optimized poses...")
     refined_poses = gtsam.utilities.extractPose3(result)
