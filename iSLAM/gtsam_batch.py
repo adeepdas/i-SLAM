@@ -5,13 +5,14 @@ from visual_odometry import extract_visual_odometry
 from imu_integration import read_imu_data
 from visualization import animate_trajectory
 
-def batch_optimization(imu_data, video_data):
+def batch_optimization(imu_data, video_data, mini_batch_size=10):
     """
     Perform batch optimization of SLAM trajectory using GTSAM with visual odometry and IMU preintegration.
     
     Args:
         imu_data (dict): IMU data
         video_data (dict): RGBD video data
+        mini_batch_size (int): Number of frames to process in each batch
 
     Returns:
         refined_transforms (np.ndarray): Refined transformation matrices of shape (N, 4, 4)
@@ -47,6 +48,7 @@ def batch_optimization(imu_data, video_data):
     vo_noise = gtsam.noiseModel.Gaussian.Covariance(np.diag(vo_cov))
 
     print("Initializing factor graph...")
+    isam = gtsam.ISAM2()
     graph = gtsam.NonlinearFactorGraph()
     initial_values = gtsam.Values()
     identity_pose = gtsam.Pose3()
@@ -56,6 +58,7 @@ def batch_optimization(imu_data, video_data):
     graph.add(gtsam.PriorFactorPose3(pose_key(0), identity_pose, prior_noise))
     graph.add(gtsam.PriorFactorVector(vel_key(0), np.zeros(3), gtsam.noiseModel.Isotropic.Sigma(3, 1e-2)))
     graph.add(gtsam.PriorFactorConstantBias(bias_key(0), initial_bias, gtsam.noiseModel.Isotropic.Sigma(6, 1e-3)))
+    isam.update(graph, initial_values)
 
     print("Adding factors to graph...")
     t = 1
@@ -63,6 +66,9 @@ def batch_optimization(imu_data, video_data):
     num_measurements = 0
     vo_prev = np.eye(4)
     for i in range(1, len(vo_timestamps)):
+        graph = gtsam.NonlinearFactorGraph()
+        initial_values = gtsam.Values()
+
         # IMU preintegration
         while imu_index < len(imu_timestamps) and imu_timestamps[imu_index] < vo_timestamps[i]:
             dt = imu_timestamps[imu_index] - imu_timestamps[imu_index-1]
@@ -108,10 +114,10 @@ def batch_optimization(imu_data, video_data):
         num_measurements = 0
         vo_prev = np.eye(4)
         preint_imu.resetIntegration()
-    
-    print("Optimizing pose graph...")
-    optimizer = gtsam.GaussNewtonOptimizer(graph, initial_values)
-    result = optimizer.optimize()
+
+        if t % mini_batch_size == 0 or i == len(vo_timestamps)-1:
+            isam.update(graph, initial_values)
+            result = isam.calculateEstimate()
     
     print("Extracting optimized poses...")
     refined_poses = gtsam.utilities.extractPose3(result)
@@ -128,10 +134,12 @@ def batch_optimization(imu_data, video_data):
     return np.array(refined_transforms)
 
 if __name__ == "__main__":
-    imu_data = np.load('data/v2/imu_data_rectangle.npy', allow_pickle=True)
-    video_data = np.load('data/v2/video_data_rectangle.npy', allow_pickle=True)
+    np.random.seed(42)  # For reproducibility
     
-    refined_transforms = batch_optimization(imu_data, video_data)
+    imu_data = np.load('data/v2/imu_data_straight_line.npy', allow_pickle=True)
+    video_data = np.load('data/v2/video_data_straight_line.npy', allow_pickle=True)
+    
+    refined_transforms = batch_optimization(imu_data, video_data, mini_batch_size=1)
     
     print("Animating trajectory...")
     orientations = refined_transforms[:, :3, :3]
