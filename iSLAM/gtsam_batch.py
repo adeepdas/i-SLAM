@@ -60,10 +60,10 @@ def batch_optimization(imu_data, video_data):
     print("Adding factors to graph...")
     t = 1
     imu_index = 1
+    num_measurements = 0
     vo_prev = np.eye(4)
     for i in range(1, len(vo_timestamps)):
         # IMU preintegration
-        num_measurements = 0
         while imu_index < len(imu_timestamps) and imu_timestamps[imu_index] < vo_timestamps[i]:
             dt = imu_timestamps[imu_index] - imu_timestamps[imu_index-1]
             if not np.isinf(dt) and dt > 0 and dt < 0.5:
@@ -105,6 +105,7 @@ def batch_optimization(imu_data, video_data):
         initial_values.insert(bias_key(t), initial_bias)
 
         t += 1
+        num_measurements = 0
         vo_prev = np.eye(4)
         preint_imu.resetIntegration()
     
