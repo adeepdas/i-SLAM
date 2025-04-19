@@ -108,6 +108,8 @@ def batch_optimization(imu_data, video_data):
         num_measurements = 0
         vo_prev = np.eye(4)
         preint_imu.resetIntegration()
+
+    print("Batch size: ", t)
     
     print("Optimizing pose graph...")
     optimizer = gtsam.GaussNewtonOptimizer(graph, initial_values)
@@ -128,6 +130,8 @@ def batch_optimization(imu_data, video_data):
     return np.array(refined_transforms)
 
 if __name__ == "__main__":
+    np.random.seed(42)  # For reproducibility
+
     imu_data = np.load('data/v2/imu_data_rectangle.npy', allow_pickle=True)
     video_data = np.load('data/v2/video_data_rectangle.npy', allow_pickle=True)
     
