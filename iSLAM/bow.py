@@ -27,7 +27,7 @@ def draw_matches(img1, img2, pts1, pts2, window_name="Matches"):
         cv2.line(canvas, (x1, y1), (x2+w1, y2), (0,255,0), 1)
 
     cv2.imshow(window_name, canvas)
-    cv2.waitKey(2*1000)
+    cv2.waitKey(500)
     
 class BoWMatcher:
     def __init__(self, vocab_path="vocab.pkl", vocab_size=1000):
@@ -121,7 +121,7 @@ class BoWMatcher:
         # Rebuild KDTree from updated BoW matrix
         self.kdtree = KDTree(np.array(self.bow_matrix))
     
-    def find_loop_candidate_kdtree(self, bow_current, current_index, min_gap=40, sim_thresh=0.87, top_k=10):
+    def find_loop_candidate_kdtree(self, bow_current, current_index, min_gap=150, sim_thresh=0.85, top_k=10):
         """
         Searches for loop closure candidates using KDTree and cosine similarity.
         
@@ -169,14 +169,14 @@ if __name__ == "__main__":
     np.random.seed(42)
 
     # Load frame paths from npy file
-    frames = np.load('video_data_munger_loop2.npy', allow_pickle=True)
+    frames = np.load('video_data_munger_big.npy', allow_pickle=True)
 
     # Initialize matcher
     matcher = BoWMatcher(vocab_size=1000)
 
     # Extract descriptors for vocabulary training (use first 10 frames)
     descriptor_list = []
-    for t in range (0, len(frames), 50):
+    for t in range (0, len(frames), 200):
         #print("loop 1 - frame:", t)
         rgb_frame = rotate_frame(frames[t])
         kp, des = matcher.extract_orb_features(rgb_frame)
@@ -198,13 +198,10 @@ if __name__ == "__main__":
         matcher.add_to_keyframe_db(bow_current, t)
 
         if loop_idx != -1:
-            print(f"[Loop Closure] Frame {t} ↔ Frame {loop_idx} (similarity: {score:.4f})")
             img1 = rgb_frame
             img2 = rotate_frame(frames[loop_idx])
             pts1, pts2, _, _ = matcher.match_features(img1, img2)
-            # if len(pts1) > 0:
-            # BoW vector comparison
-            # if len(pts1) > 0:
-            draw_matches(img1, img2, pts1, pts2)            
-                
-            print(f"[Frame {t}] BoW cosine similarity: {score:.4f}")
+            if len(pts1) > 100:
+                print(f"[Loop Closure] Frame {t} ↔ Frame {loop_idx} (similarity: {score:.4f})")
+                draw_matches(img1, img2, pts1, pts2)            
+                print(f"[Frame {t}] BoW cosine similarity: {score:.4f}")
