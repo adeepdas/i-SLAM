@@ -56,68 +56,67 @@ def extract_visual_odometry(frames: List[dict],
         ransac_iterations (int): Maximum number of RANSAC iterations (default: 500)
         
     Returns:
+        timestamps (np.ndarray): Timestamps of shape (N,)
         transforms (np.ndarray): Transformation matrices of shape (N, 4, 4)
 
     Raises:
         RuntimeError: If insufficient feature matches are found
     """ 
+    timestamps = [0.]
     transforms = [np.eye(4)]
     for t in range(len(frames)-1):
-        try:
-            frame_prev = frames[t]
-            frame_curr = frames[t+1]
-            
-            # rotate frames to correct orientation
-            bgr_prev, depth_prev = rotate_frame(frame_prev)
-            bgr_curr, depth_curr = rotate_frame(frame_curr)
-            
-            # extract and match features
-            matches_prev, matches_curr = orb.feature_extraction(bgr_prev, bgr_curr)
-            if matches_prev.shape[0] < min_matches:
-                print(f"Warning: Insufficient matches at frame {t} ({matches_prev.shape[0]} < {min_matches})")
-                continue
-            
-            # convert depth to point clouds
-            sx = scale_factor
-            sy = scale_factor
-            pc_prev = depth_to_pointcloud(
-                depth_prev,
-                frame_prev['fx'] * sx,
-                frame_prev['fy'] * sy,
-                frame_prev['cx'] * sx,
-                frame_prev['cy'] * sy
-            )
-            pc_curr = depth_to_pointcloud(
-                depth_curr,
-                frame_curr['fx'] * sx,
-                frame_curr['fy'] * sy,
-                frame_curr['cx'] * sx,
-                frame_curr['cy'] * sy
-            )
-            
-            # extract 3D points for matched features
-            P = pc_prev[matches_prev[:, 1], matches_prev[:, 0], :]
-            Q = pc_curr[matches_curr[:, 1], matches_curr[:, 0], :]
-            
-            # filter invalid points
-            valid_P = (P[:, 2] != 0) & (P[:, 2] > depth_threshold)
-            valid_Q = (Q[:, 2] != 0) & (Q[:, 2] > depth_threshold)
-            # must filter both point clouds using the same indices
-            valid_idx = valid_P & valid_Q
-            P = P[valid_idx]
-            Q = Q[valid_idx]
-            
-            # estimate transform using RANSAC
-            T = fit_transform3D.ransac(Q, P, threshold=ransac_threshold, max_iterations=ransac_iterations)
-            transforms.append(T)
-            
-        except Exception as e:
-            print(f"Error processing frame {t}: {str(e)}")
+        frame_prev = frames[t]
+        frame_curr = frames[t+1]
+        
+        # rotate frames to correct orientation
+        bgr_prev, depth_prev = rotate_frame(frame_prev)
+        bgr_curr, depth_curr = rotate_frame(frame_curr)
+        
+        # extract and match features
+        matches_prev, matches_curr = orb.feature_extraction(bgr_prev, bgr_curr)
+        if matches_prev.shape[0] < min_matches:
+            print(f"Warning: Insufficient matches at frame {t} ({matches_prev.shape[0]} < {min_matches})")
             continue
         
+        # convert depth to point clouds
+        sx = scale_factor
+        sy = scale_factor
+        pc_prev = depth_to_pointcloud(
+            depth_prev,
+            frame_prev['fx'] * sx,
+            frame_prev['fy'] * sy,
+            frame_prev['cx'] * sx,
+            frame_prev['cy'] * sy
+        )
+        pc_curr = depth_to_pointcloud(
+            depth_curr,
+            frame_curr['fx'] * sx,
+            frame_curr['fy'] * sy,
+            frame_curr['cx'] * sx,
+            frame_curr['cy'] * sy
+        )
+        
+        # extract 3D points for matched features
+        P = pc_prev[matches_prev[:, 1], matches_prev[:, 0], :]
+        Q = pc_curr[matches_curr[:, 1], matches_curr[:, 0], :]
+        
+        # filter invalid points
+        valid_P = (P[:, 2] != 0) & (P[:, 2] > depth_threshold)
+        valid_Q = (Q[:, 2] != 0) & (Q[:, 2] > depth_threshold)
+        # must filter both point clouds using the same indices
+        valid_idx = valid_P & valid_Q
+        P = P[valid_idx]
+        Q = Q[valid_idx]
+        
+        # estimate transform using RANSAC
+        T = fit_transform3D.ransac(Q, P, threshold=ransac_threshold, max_iterations=ransac_iterations)
+        transforms.append(T)
+        timestamps.append(frame_curr['timestamp'])
+    
+    timestamps = np.array(timestamps)
     transforms = np.array(transforms)
     
-    return transforms
+    return timestamps, transforms
 
 
 if __name__ == "__main__":
@@ -126,7 +125,7 @@ if __name__ == "__main__":
     frames = np.load('data/v2/video_data_rectangle.npy', allow_pickle=True)
     
     # extract visual odometry poses
-    transforms = extract_visual_odometry(frames)
+    _, transforms = extract_visual_odometry(frames)
 
     # convert relative poses to absolute poses
     for i in range(1, len(transforms)):
