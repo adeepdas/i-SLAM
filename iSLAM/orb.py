@@ -10,7 +10,7 @@ import cv2
 #         goodMatchesP[i] = [x, y] of the i-th good match in imgP
 #         goodMatchesQ[i] = [x, y] of the i-th good match in imgQ
 # Output the visualization of the good matches as well
-def feature_extraction(rgb_img_P, rgb_img_Q):
+def feature_extraction(rgb_img_P, rgb_img_Q, viz: bool = False):
     try:
         # Convert images to grayscale for ORB processing
         grayP = cv2.cvtColor(rgb_img_P, cv2.COLOR_RGB2GRAY)
@@ -43,22 +43,23 @@ def feature_extraction(rgb_img_P, rgb_img_Q):
         # print("Q Img GoodMatches:\n", goodMatchesQ)
 
         # ############################################################################################################################################################
-        # # VISUALIZE THE GOOD MATCHES
-        # img_combined = np.hstack((rgb_img_P, rgb_img_Q))  # Stack images horizontally
+        if viz:
+            # VISUALIZE THE GOOD MATCHES
+            img_combined = np.hstack((rgb_img_P, rgb_img_Q))  # Stack images horizontally
 
-        # # Draw lines between the matching points
-        # for pt1, pt2 in zip(goodMatchesP, goodMatchesQ):
-        #     # pt1 is from imgP and pt2 is from imgQ
-        #     # Offset the pt2 by the width of img_2d_P since img_2d_Q is to the right
-        #     pt2_offset = (int(pt2[0] + rgb_img_P.shape[1]), int(pt2[1]))  # Offset pt2
+            # Draw lines between the matching points
+            for pt1, pt2 in zip(goodMatchesP, goodMatchesQ):
+                # pt1 is from imgP and pt2 is from imgQ
+                # Offset the pt2 by the width of img_2d_P since img_2d_Q is to the right
+                pt2_offset = (int(pt2[0] + rgb_img_P.shape[1]), int(pt2[1]))  # Offset pt2
 
-        #     # Draw the line on the combined image
-        #     cv2.line(img_combined, (int(pt1[0]), int(pt1[1])), pt2_offset, (0, 255, 0), 1)
+                # Draw the line on the combined image
+                cv2.line(img_combined, (int(pt1[0]), int(pt1[1])), pt2_offset, (0, 255, 0), 1)
 
-        # # Show the combined image with matches
-        # cv2.imshow("Good Matches", img_combined)
-        # cv2.waitKey(0)  # Wait until a key is pressed
-        # cv2.destroyAllWindows()
+            # Show the combined image with matches
+            cv2.imshow("Good Matches", img_combined)
+            cv2.waitKey(0)  # Wait until a key is pressed
+            cv2.destroyAllWindows()
         # ############################################################################################################################################################
 
         return np.round(goodMatchesP, 0).astype(int), np.round(goodMatchesQ, 0).astype(int)

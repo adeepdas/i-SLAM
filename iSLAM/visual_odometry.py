@@ -43,7 +43,8 @@ def extract_visual_odometry(frames: List[dict],
                             scale_factor: float = 1/6,
                             depth_threshold: float = -20,
                             ransac_threshold: float = 0.05,
-                            ransac_iterations: int = 500):
+                            ransac_iterations: int = 500, 
+                            viz: bool = False):
     """
     Extract relative poses from visual odometry using feature matching and RANSAC.
     
@@ -73,7 +74,7 @@ def extract_visual_odometry(frames: List[dict],
         bgr_curr, depth_curr = rotate_frame(frame_curr)
         
         # extract and match features
-        matches_prev, matches_curr = orb.feature_extraction(bgr_prev, bgr_curr)
+        matches_prev, matches_curr = orb.feature_extraction(bgr_prev, bgr_curr, viz=viz)
         if len(matches_prev) < min_matches:
             print(f"Warning: Insufficient matches at frame {t} ({len(matches_prev)} < {min_matches})")
             continue

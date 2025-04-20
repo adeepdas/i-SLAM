@@ -1,17 +1,21 @@
 import numpy as np
 import gtsam
 from gtsam import symbol
-from visual_odometry import extract_visual_odometry
-from imu_integration import read_imu_data
-from visualization import animate_trajectory, plot_trajectory
+from iSLAM.visual_odometry import extract_visual_odometry, rotate_frame
+from iSLAM.imu_integration import read_imu_data
+from iSLAM.visualization import animate_trajectory, plot_trajectory
+from iSLAM.bow import BoWMatcher
+from iSLAM.bow import draw_matches
 
-def graph_optimization(imu_data, video_data, mini_batch_size=10):
+
+def graph_optimization(imu_data, video_data, bow_matcher, mini_batch_size=10):
     """
     Perform batch optimization of SLAM trajectory using GTSAM with visual odometry and IMU preintegration.
     
     Args:
         imu_data (dict): IMU data
         video_data (dict): RGBD video data
+        bow_matcher (BoWMatcher): BoW matcher
         mini_batch_size (int): Number of frames to process in each batch
 
     Returns:
@@ -64,6 +68,7 @@ def graph_optimization(imu_data, video_data, mini_batch_size=10):
     imu_index = 1
     num_measurements = 0
     vo_prev = np.eye(4)
+    i2t = {}
     for i in range(1, len(vo_timestamps)):
         # IMU preintegration
         while imu_index < len(imu_timestamps) and imu_timestamps[imu_index] < vo_timestamps[i]:
@@ -107,6 +112,24 @@ def graph_optimization(imu_data, video_data, mini_batch_size=10):
         initial_values.insert(vel_key(t), np.zeros(3))
         initial_values.insert(bias_key(t), initial_bias)
 
+        # loop closure 
+        # bgr_frame, _ = rotate_frame(video_data[i])
+        # bow_current = bow_matcher.compute_bow_descriptor(bgr_frame)
+        # if bow_current is not None:
+        #     # search for loop closure among earlier frames
+        #     loop_idx, score = bow_matcher.find_loop_candidate_kdtree(bow_current, i)
+        #     bow_matcher.add_to_keyframe_db(bow_current, i)
+
+        #     if loop_idx != -1:
+        #         _, loop_transforms = extract_visual_odometry([video_data[loop_idx], video_data[i]], viz=True)
+        #         if len(loop_transforms) == 2:
+        #             loop_transform = loop_transforms[1]
+        #             R_loop = loop_transform[:3, :3]
+        #             t_loop = loop_transform[:3, -1]
+        #             pose_loop = gtsam.Pose3(gtsam.Rot3(R_loop), gtsam.Point3(t_loop))
+        #             graph.add(gtsam.BetweenFactorPose3(pose_key(i2t[loop_idx]), pose_key(t), pose_loop, vo_noise))
+
+        i2t[i] = t
         t += 1
         num_measurements = 0
         vo_prev = np.eye(4)
@@ -136,13 +159,27 @@ def graph_optimization(imu_data, video_data, mini_batch_size=10):
     
     return np.array(refined_transforms)
 
+
+FRAMES_PER_SECOND = 30
+
 if __name__ == "__main__":
     np.random.seed(42)  # For reproducibility
     
-    imu_data = np.load('data/munger/imu_data_munger_big.npy', allow_pickle=True)
-    video_data = np.load('data/munger/video_data_munger_big.npy', allow_pickle=True)
+    imu_data = np.load('data/munger/imu_data_munger_loop2.npy', allow_pickle=True)
+    video_data = np.load('data/munger/video_data_munger_loop2.npy', allow_pickle=True)
+
+    # loop closure initialization
+    bow_matcher = BoWMatcher(vocab_size=1000)
+    # train vocabulary
+    descriptor_list = []
+    for t in range(0, len(video_data), 15): # sample every 10 seconds
+        bgr_frame, _ = rotate_frame(video_data[t])
+        kp, des = bow_matcher.extract_orb_features(bgr_frame)
+        if des is not None:
+            descriptor_list.append(des)
+    bow_matcher.train_vocab(descriptor_list)
     
-    refined_transforms = graph_optimization(imu_data, video_data, mini_batch_size=100)
+    refined_transforms = graph_optimization(imu_data, video_data, bow_matcher, mini_batch_size=1723)
     
     print("Animating trajectory...")
     orientations = refined_transforms[:, :3, :3]
