@@ -1,6 +1,6 @@
-import orb as orb
-import fit_transform3D as fit_transform3D
-import visualization as visualization
+import iSLAM.orb as orb
+import iSLAM.fit_transform3D as fit_transform3D
+import iSLAM.visualization as visualization
 import numpy as np
 import cv2
 from typing import List
@@ -122,7 +122,7 @@ def extract_visual_odometry(frames: List[dict],
 if __name__ == "__main__":
     np.random.seed(42) 
 
-    frames = np.load('data/munger/video_data_munger_big.npy', allow_pickle=True)
+    frames = np.load('data/video_data_lounge_straight_line.npy', allow_pickle=True)
     
     # extract visual odometry poses
     _, transforms = extract_visual_odometry(frames)
@@ -134,5 +134,5 @@ if __name__ == "__main__":
     # visualize trajectory
     orientations = transforms[:, :3, :3]
     positions = transforms[:, :3, -1]
-    # visualization.animate_trajectory(orientations, positions)
-    visualization.plot_trajectory(orientations, positions)
+    visualization.animate_trajectory(orientations, positions)
+    # visualization.plot_trajectory(orientations, positions)
