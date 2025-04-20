@@ -1,9 +1,9 @@
 import numpy as np
 import gtsam
 from gtsam import symbol
-from visual_odometry import extract_visual_odometry
-from imu_integration import read_imu_data
-from visualization import animate_trajectory, plot_trajectory
+from iSLAM.visual_odometry import extract_visual_odometry
+from iSLAM.imu_integration import read_imu_data
+from iSLAM.visualization import animate_trajectory, plot_trajectory
 
 def graph_optimization(imu_data, video_data, mini_batch_size=10):
     """
@@ -139,8 +139,8 @@ def graph_optimization(imu_data, video_data, mini_batch_size=10):
 if __name__ == "__main__":
     np.random.seed(42)  # For reproducibility
     
-    imu_data = np.load('data/munger/imu_data_munger_big.npy', allow_pickle=True)
-    video_data = np.load('data/munger/video_data_munger_big.npy', allow_pickle=True)
+    imu_data = np.load('data/imu_data_lounge_straight_line.npy', allow_pickle=True)
+    video_data = np.load('data/video_data_lounge_straight_line.npy', allow_pickle=True)
     
     refined_transforms = graph_optimization(imu_data, video_data, mini_batch_size=100)
     
