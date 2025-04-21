@@ -3,6 +3,7 @@ import iSLAM.fit_transform3D as fit_transform3D
 import iSLAM.visualization as visualization
 import numpy as np
 import cv2
+from typing import List
 
 
 def depth_to_pointcloud(depth, fx, fy, cx, cy):
@@ -37,66 +38,101 @@ def rotate_frame(frame):
     depth = cv2.rotate(frame['depth'], cv2.ROTATE_90_CLOCKWISE)
     return bgr, depth
 
+def extract_visual_odometry(frames: List[dict], 
+                            min_matches: int = 100,
+                            scale_factor: float = 1/6,
+                            depth_threshold: float = -20,
+                            ransac_threshold: float = 0.05,
+                            ransac_iterations: int = 500):
+    """
+    Extract relative poses from visual odometry using feature matching and RANSAC.
+    
+    Args:
+        frames (List[dict]): List of frames containing RGB and depth images with camera parameters
+        min_matches (int): Minimum number of feature matches required to estimate transform
+        scale_factor (float): Factor to scale down image resolution (default: 1/6)
+        depth_threshold (float): Maximum depth value to consider (default: -20)
+        ransac_threshold (float): RANSAC inlier threshold (default: 0.05)
+        ransac_iterations (int): Maximum number of RANSAC iterations (default: 500)
+        
+    Returns:
+        timestamps (np.ndarray): Timestamps of shape (N,)
+        transforms (np.ndarray): Transformation matrices of shape (N, 4, 4)
 
-if __name__ == "__main__":
-    np.random.seed(42) 
-    # read RGBD frames from npz file
-    frames = np.load('data/rectangle_vertical.npy', allow_pickle=True)
-    # frames = [frames[35], frames[45]]
-    T = len(frames)
+    Raises:
+        RuntimeError: If insufficient feature matches are found
+    """ 
+    timestamps = [0.]
     transforms = [np.eye(4)]
-    for t in range(T-1):
+    for t in range(len(frames)-1):
         frame_prev = frames[t]
         frame_curr = frames[t+1]
+        
+        # rotate frames to correct orientation
         bgr_prev, depth_prev = rotate_frame(frame_prev)
         bgr_curr, depth_curr = rotate_frame(frame_curr)
         
-        # exact BGR frames and preform feature matching betwwen frames
+        # extract and match features
         matches_prev, matches_curr = orb.feature_extraction(bgr_prev, bgr_curr)
-        if matches_prev.shape[0] < 100: # emperical
+        if len(matches_prev) < min_matches:
+            print(f"Warning: Insufficient matches at frame {t} ({len(matches_prev)} < {min_matches})")
             continue
-
-        # we scale images by 1/6 to reduce resolution
-        sx = 1/6
-        sy = 1/6
-        # extract depth data
+        
+        # convert depth to point clouds
+        sx = scale_factor
+        sy = scale_factor
         pc_prev = depth_to_pointcloud(
-            depth_prev, 
+            depth_prev,
             frame_prev['fx'] * sx,
             frame_prev['fy'] * sy,
             frame_prev['cx'] * sx,
             frame_prev['cy'] * sy
         )
         pc_curr = depth_to_pointcloud(
-            depth_curr, 
+            depth_curr,
             frame_curr['fx'] * sx,
             frame_curr['fy'] * sy,
             frame_curr['cx'] * sx,
             frame_curr['cy'] * sy
         )
-        print(f"t: {t}, matches: {matches_prev.shape}")
-        # index into pointclouds by extracted features
-        # switch (x, y) to (y, x) because we are indexing into np array with opencv convention 
-        P = pc_prev[matches_prev[:, 1], matches_prev[:, 0], :] # N x 3
-        Q = pc_curr[matches_curr[:, 1], matches_curr[:, 0], :] # N x 3
-        # remove points with z = 0 (filter infinite depth)
-        P = P[P[:, 2] != 0]
-        Q = Q[Q[:, 2] != 0]
-        # remove points with z < -20 (filtermax depth)
-        P = P[P[:, 2] > -20]
-        Q = Q[Q[:, 2] > -20]
-        # visualization.plot_pointclouds(Q, P)
-
-        # optimize transform
-        # fit transform from Q to P since we want transform between camera frames,
-        # not between pointclouds
-        T = fit_transform3D.ransac(Q, P, threshold=0.05, max_iterations=500)
-        transforms.append(transforms[-1] @ T)
-
+        
+        # extract 3D points for matched features
+        P = pc_prev[matches_prev[:, 1], matches_prev[:, 0], :]
+        Q = pc_curr[matches_curr[:, 1], matches_curr[:, 0], :]
+        
+        # filter invalid points
+        valid_P = (P[:, 2] != 0) & (P[:, 2] > depth_threshold)
+        valid_Q = (Q[:, 2] != 0) & (Q[:, 2] > depth_threshold)
+        # must filter both point clouds using the same indices
+        valid_idx = valid_P & valid_Q
+        P = P[valid_idx]
+        Q = Q[valid_idx]
+        
+        # estimate transform using RANSAC
+        T = fit_transform3D.ransac(Q, P, threshold=ransac_threshold, max_iterations=ransac_iterations)
+        transforms.append(T)
+        timestamps.append(frame_curr['timestamp'])
+    
+    timestamps = np.array(timestamps)
     transforms = np.array(transforms)
-    positions = transforms[:, :3, 3]
-    orientations = transforms[:, :3, :3]
-    # print(transforms)
+    
+    return timestamps, transforms
 
-    # visualize 
-    visualization.animate_trajectory(orientations, positions)
+
+if __name__ == "__main__":
+    np.random.seed(42) 
+
+    frames = np.load('data/video_data_nik_yellow.npy', allow_pickle=True)
+    
+    # extract visual odometry poses
+    _, transforms = extract_visual_odometry(frames)
+
+    # convert relative poses to absolute poses
+    for i in range(1, len(transforms)):
+        transforms[i] = transforms[i-1] @ transforms[i]
+    
+    # visualize trajectory
+    orientations = transforms[:, :3, :3]
+    positions = transforms[:, :3, -1]
+    # visualization.animate_trajectory(orientations, positions)
+    visualization.plot_trajectory(orientations, positions)

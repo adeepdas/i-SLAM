@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 def icp(P, Q, max_iter=10, tol=1e-6):
     """
-    Estimate SE(3) transformation using Lie algebra optimization
+    Estimate SE(3) transformation from @P to @Q using Lie algebra optimization
     (Gauss-Newton with incremental accumulation)
 
     Args:
@@ -83,7 +83,7 @@ def svd_registration(P, Q):
 
     return to_transform(R, t)
 
-def ransac(P, Q, optim_method="svd", threshold=0.05, max_iterations=1000):    
+def ransac(P, Q, optim_method="svd", threshold=0.05, max_iterations=100):    
     """
     Estimate SE(3) transformation using RANSAC
 
