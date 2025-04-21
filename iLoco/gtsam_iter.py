@@ -4,6 +4,7 @@ from gtsam import symbol
 from iLoco.visual_odometry import extract_visual_odometry
 from iLoco.imu_integration import read_imu_data
 from iLoco.visualization import animate_trajectory, plot_trajectory
+import argparse
 
 def graph_optimization(imu_data, video_data, mini_batch_size=10):
     """
@@ -137,15 +138,28 @@ def graph_optimization(imu_data, video_data, mini_batch_size=10):
     return np.array(refined_transforms)
 
 if __name__ == "__main__":
-    np.random.seed(42)  # For reproducibility
-    
-    imu_data = np.load('data/imu_data_nik_yellow.npy', allow_pickle=True)
-    video_data = np.load('data/video_data_nik_yellow.npy', allow_pickle=True)
-    
-    refined_transforms = graph_optimization(imu_data, video_data, mini_batch_size=100)
-    
-    print("Animating trajectory...")
-    orientations = refined_transforms[:, :3, :3]
-    positions = refined_transforms[:, :3, -1]
-    # animate_trajectory(orientations, positions, interval=1)
+    parser = argparse.ArgumentParser(description='Run GTSAM optimization with IMU and visual odometry')
+    parser.add_argument('--imu', type=str, default='data/imu_data_nik_yellow.npy',
+                      help='Path to input IMU data file')
+    parser.add_argument('--video', type=str, default='data/video_data_nik_yellow.npy',
+                      help='Path to input video data file')
+    args = parser.parse_args()
+
+    np.random.seed(42) 
+
+    # read IMU data
+    imu_frames = np.load(args.imu, allow_pickle=True)
+    timestamps, acc_data, gyro_data = read_imu_data(imu_frames)
+
+    # read video data
+    video_frames = np.load(args.video, allow_pickle=True)
+    _, vo_transforms = extract_visual_odometry(video_frames)
+
+    # run GTSAM optimization
+    optimized_poses = graph_optimization(imu_frames, video_frames, mini_batch_size=100)
+
+    # visualize trajectory
+    orientations = optimized_poses[:, :3, :3]
+    positions = optimized_poses[:, :3, -1]
+    # animate_trajectory(orientations, positions)
     plot_trajectory(orientations, positions)

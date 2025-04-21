@@ -1,6 +1,7 @@
 import numpy as np
 from iLoco.utils import skew
 from iLoco.visualization import animate_trajectory, plot_trajectory
+import argparse
 
 
 G = -9.8
@@ -161,9 +162,15 @@ def read_imu_data(frames):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Extract IMU odometry from IMU data')
+    parser.add_argument('--input', type=str, default='data/imu_data_nik_yellow.npy',
+                      help='Path to input IMU data file')
+    args = parser.parse_args()
+
+    np.random.seed(42) 
+
     # read IMU data
-    imu_file = "data/imu_data_nik_yellow.npy"
-    frames = np.load(imu_file, allow_pickle=True)
+    frames = np.load(args.input, allow_pickle=True)
     timestamps, acc_data, gyro_data = read_imu_data(frames)
 
     # integrate IMU data to get trajectory
@@ -176,5 +183,6 @@ if __name__ == "__main__":
         orientations[i] = orientations[i-1] @ orientations[i]
         positions[i] = orientations[i-1] @ positions[i] + positions[i-1]
 
+    # visualize trajectory
     # animate_trajectory(orientations, positions, interval=1e-5)
     plot_trajectory(orientations, positions)

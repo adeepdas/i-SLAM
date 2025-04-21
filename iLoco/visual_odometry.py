@@ -1,9 +1,10 @@
 import iLoco.orb as orb
 import iLoco.fit_transform3D as fit_transform3D
-import iLoco.visualization as visualization
+from iLoco.visualization import plot_trajectory, animate_trajectory
 import numpy as np
 import cv2
 from typing import List
+import argparse
 
 
 def depth_to_pointcloud(depth, fx, fy, cx, cy):
@@ -120,9 +121,14 @@ def extract_visual_odometry(frames: List[dict],
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Extract visual odometry from video data')
+    parser.add_argument('--input', type=str, default='data/video_data_nik_yellow.npy',
+                      help='Path to input video data file')
+    args = parser.parse_args()
+
     np.random.seed(42) 
 
-    frames = np.load('data/video_data_nik_yellow.npy', allow_pickle=True)
+    frames = np.load(args.input, allow_pickle=True)
     
     # extract visual odometry poses
     _, transforms = extract_visual_odometry(frames)
@@ -134,5 +140,5 @@ if __name__ == "__main__":
     # visualize trajectory
     orientations = transforms[:, :3, :3]
     positions = transforms[:, :3, -1]
-    # visualization.animate_trajectory(orientations, positions)
-    visualization.plot_trajectory(orientations, positions)
+    # animate_trajectory(orientations, positions)
+    plot_trajectory(orientations, positions)

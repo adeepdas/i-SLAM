@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="iSLAM",
+    name="iLoco",
     packages=[
-        package for package in find_packages() if package.startswith("iSLAM")
+        package for package in find_packages() if package.startswith("iLoco")
     ],
 )
