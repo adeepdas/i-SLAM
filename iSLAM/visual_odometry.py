@@ -122,7 +122,7 @@ def extract_visual_odometry(frames: List[dict],
 if __name__ == "__main__":
     np.random.seed(42) 
 
-    frames = np.load('data/video_data_lounge_straight_line.npy', allow_pickle=True)
+    frames = np.load('data/video_data_nik_yellow.npy', allow_pickle=True)
     
     # extract visual odometry poses
     _, transforms = extract_visual_odometry(frames)
@@ -134,5 +134,5 @@ if __name__ == "__main__":
     # visualize trajectory
     orientations = transforms[:, :3, :3]
     positions = transforms[:, :3, -1]
-    visualization.animate_trajectory(orientations, positions)
-    # visualization.plot_trajectory(orientations, positions)
+    # visualization.animate_trajectory(orientations, positions)
+    visualization.plot_trajectory(orientations, positions)
