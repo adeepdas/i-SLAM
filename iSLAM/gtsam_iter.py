@@ -18,7 +18,7 @@ def graph_optimization(imu_data, video_data, mini_batch_size=10):
         refined_transforms (np.ndarray): Refined transformation matrices of shape (N, 4, 4)
     """
     print("Performing visual odometry...")
-    vo_timestamps, vo_transforms = extract_visual_odometry(video_data)
+    vo_timestamps, vo_transforms = extract_visual_odometry(video_data, min_matches=50)
     
     print("Reading IMU data...")
     imu_timestamps, acc_data, gyro_data = read_imu_data(imu_data)
@@ -139,8 +139,8 @@ def graph_optimization(imu_data, video_data, mini_batch_size=10):
 if __name__ == "__main__":
     np.random.seed(42)  # For reproducibility
     
-    imu_data = np.load('data/imu_data_lounge_straight_line.npy', allow_pickle=True)
-    video_data = np.load('data/video_data_lounge_straight_line.npy', allow_pickle=True)
+    imu_data = np.load('data/imu_data_nik_yellow.npy', allow_pickle=True)
+    video_data = np.load('data/video_data_nik_yellow.npy', allow_pickle=True)
     
     refined_transforms = graph_optimization(imu_data, video_data, mini_batch_size=100)
     

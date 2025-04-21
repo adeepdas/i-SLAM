@@ -162,7 +162,7 @@ def read_imu_data(frames):
 
 if __name__ == "__main__":
     # read IMU data
-    imu_file = "data/imu_data_lounge_straight_line.npy"
+    imu_file = "data/imu_data_nik_yellow.npy"
     frames = np.load(imu_file, allow_pickle=True)
     timestamps, acc_data, gyro_data = read_imu_data(frames)
 
