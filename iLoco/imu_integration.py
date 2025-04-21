@@ -1,6 +1,6 @@
 import numpy as np
-from iSLAM.utils import skew
-from iSLAM.visualization import animate_trajectory, plot_trajectory
+from iLoco.utils import skew
+from iLoco.visualization import animate_trajectory, plot_trajectory
 
 
 G = -9.8

@@ -1,10 +1,10 @@
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-from iSLAM.visual_odometry import extract_visual_odometry, depth_to_pointcloud, rotate_frame
-from iSLAM.orb import feature_extraction
-from iSLAM.gtsam_iter import graph_optimization
-from iSLAM.visualization import plot_trajectory
+from iLoco.visual_odometry import extract_visual_odometry, depth_to_pointcloud, rotate_frame
+from iLoco.orb import feature_extraction
+from iLoco.gtsam_iter import graph_optimization
+from iLoco.visualization import plot_trajectory
 
 def visualize_results(video_data, imu_data, frame_idx=-1):
     """

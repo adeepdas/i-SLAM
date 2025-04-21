@@ -1,6 +1,6 @@
-import iSLAM.orb as orb
-import iSLAM.fit_transform3D as fit_transform3D
-import iSLAM.visualization as visualization
+import iLoco.orb as orb
+import iLoco.fit_transform3D as fit_transform3D
+import iLoco.visualization as visualization
 import numpy as np
 import cv2
 from typing import List
