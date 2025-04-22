@@ -18,7 +18,7 @@ iLoco is a Visual-Inertial SLAM (Simultaneous Localization and Mapping) system t
 
 
 ### iOS Client Requirements
-- MacOs with Xcode for building and deploying the app
+- MacOS with XCode for building and deploying the app
 - iOS device with Lidar Camera (iPhone 12 Pro or later Pro models)
 - iOS 13.0 or later
 
@@ -39,25 +39,29 @@ sudo apt update && sudo apt install -y \
     wget \
     git
 ```
+### 2. Configure Network in VirtualBox (if using VM)
+1. Open **VirtualBox** settings
+2. Navigate to **Network** settings
+3. Set **Attached to:** `Bridged Adapter` to enable direct network access
 
-### 2. Miniconda Installation
+### 3. Miniconda Installation
 ```bash
 # Download Miniconda installer
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+wget https://repo.anaconda.com/archive/Anaconda3-2024.02-1-Linux-x86_64.sh
 
 # Make installer executable
-chmod +x Miniconda3-latest-Linux-x86_64.sh
+chmod +x Anaconda3-2024.02-1-Linux-x86_64.sh
 
 # Run installer (follow the prompts)
-./Miniconda3-latest-Linux-x86_64.sh
+./Anaconda3-2024.02-1-Linux-x86_64.sh
 
 # Activate conda (or restart your terminal)
 source ~/.bashrc
 ```
 
-### 3. Create and Setup Conda Environment
+### 4. Create and Setup Conda Environment
 ```bash
-conda create -n iLoco2 -y \
+conda create -n iLoco -y \
     python==3.9 \
     numpy==1.26.4 \
     conda-forge::gtsam==4.2.0 \
