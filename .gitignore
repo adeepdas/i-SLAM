@@ -64,7 +64,7 @@ target/
 *.sh
 
 # data
-.npy
+*.npy
 
 dist/
 *.egg-info/
