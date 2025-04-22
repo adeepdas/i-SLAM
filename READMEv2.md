@@ -59,7 +59,15 @@ chmod +x Anaconda3-2024.02-1-Linux-x86_64.sh
 source ~/.bashrc
 ```
 
-### 4. Create and Setup Conda Environment
+### 4. Clone Repository
+
+4. Clone the repository:
+```bash
+git clone https://github.com/adeepdas/iLoco.git
+cd iLoco
+```
+
+### 5. Create and Setup Conda Environment
 ```bash
 conda create -n iLoco -y \
     python==3.9 \
@@ -72,13 +80,24 @@ conda create -n iLoco -y \
     scipy \
     pip
 ```
-4. Clone the repository:
-```bash
-git clone https://github.com/adeepdas/iLoco.git
-cd iLoco
-```
 
-5. Build and install h264decoder and iLoco:
+### 5b. Or install through pip
+conda create -n iLoco -y python==3.9
+conda activate iLoco
+pip install numpy==1.26.4 \
+            gtsam==4.2.0 \
+            matplotlib==3.8.3 \
+            jupyterlab \
+            opencv-python==4.8.0 \
+            pillow \
+            scipy
+
+### 6. Activate Conda Environment
+```bash
+conda activate iLoco
+```
+### 7. Build and Install Dependencies
+Build and install h264decoder and iLoco:
 ```bash
 pip install . h264decoder/
 ```
