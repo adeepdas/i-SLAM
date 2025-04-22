@@ -89,11 +89,11 @@ conda activate iLoco
 ### 7. Build and Install Dependencies
 Build and install h264decoder and iLoco:
 ```bash
-pip install . h264decoder/
+pip install . server/h264decoder/
 ```
 
-### iOS Client Setup //TODO: CHANGE THIS
-1. Open `VideoStreamingClient/VideoStreamingClient.xcodeproj` in Xcode
+### iOS Client Setup 
+1. Open `iphone-depth-streaming/LiDARDepth.xcodeproj` in XCode
 2. Configure signing and team settings
 3. Build and deploy to your iOS device
 
@@ -114,10 +114,10 @@ pip install . h264decoder/
 
 ```bash
 # Basic usage - files will be saved with timestamp
-python video_imu_server.py
+python server/video_imu_server.py
 
 # Save files with custom name prefix
-python video_imu_server.py --name experiment1
+python server/video_imu_server.py --name experiment1
 ```
 
 This will create:
@@ -136,7 +136,7 @@ This will create:
 
 ### Data Collection Duration
 - By default, the server records for 60 seconds
-- This can be modified by changing `SECONDS_TO_RECORD` in `video_imu_server.py`
+- This can be modified by changing `SECONDS_TO_RECORD` in `server/video_imu_server.py`
 - The server automatically saves data after the specified duration
 - Recording progress is shown in the terminal:
   ```
@@ -162,27 +162,53 @@ The system provides several scripts for data processing and visualization:
 
 Example usage:
 ```bash
-python -m iLoco.gtsam_iter --imu data/imu_data.npy --video data/video_data.npy
+python -m algo.gtsam_iter --imu server/output/imu_data.npy --video server/output/video_data.npy
 ```
 
 ## Project Structure
 ```
 iLoco/
-├── iLoco/                      # Main Python package
-│   ├── imu_integration.py      # IMU processing
-│   ├── visual_odometry.py      # Visual odometry
-│   ├── gtsam_iter.py           # GTSAM optimization
-│   └── visualization.py        # Trajectory visualization
-├── h264decoder/                # H264 video decoder module
-├── VideoStreamingClient/       # iOS client application
-├── video_imu_server.py         # Data collection server
-└── requirements.txt            # Python dependencies
+├── server/                     # Server components
+│   ├── h264decoder/           # H264 video decoder module
+│   ├── video_imu_server.py    # Data collection server
+│   └── output/                # Directory for recorded data
+│       └── *.npy             # Recorded video and IMU data
+├── iphone-depth-streaming/    # iOS client application
+│   └── LiDARDepth.xcodeproj  # Xcode project
+├── algo/                      # SLAM algorithms
+│   ├── imu_integration.py    # IMU processing
+│   ├── visual_odometry.py    # Visual odometry
+│   ├── gtsam_iter.py        # GTSAM optimization
+│   └── visualization.py      # Trajectory visualization
+└── requirements.txt          # Python dependencies
+```
+
+## Data Storage
+- All recorded data (`.npy` files) are stored in `server/output/` directory
+- This directory is git-ignored to prevent large files from being committed
+- Make sure to back up your data separately if needed
+
+## Running the Server
+Update the server execution command to reflect new organization:
+```bash
+# From the iLoco directory
+python server/video_imu_server.py
+
+# With custom name
+python server/video_imu_server.py --name experiment1
+```
+
+## Processing Data
+Update the processing commands to reflect new organization:
+```bash
+# From the iLoco directory
+python algo/gtsam_iter.py --imu server/output/imu_data.npy --video server/output/video_data.npy
 ```
 
 ## Data Format
 The system saves data in two formats:
 
-The system automatically saves video and IMU data to files after a predefined number of seconds. By default, this is set to 60 seconds. To change this duration, modify the `SECONDS_TO_RECORD` variable in the `video_imu_server.py` file.
+The system automatically saves video and IMU data to files after a predefined number of seconds. By default, this is set to 60 seconds. To change this duration, modify the `SECONDS_TO_RECORD` variable in the `server/video_imu_server.py` file.
 
 | Data Type | File Format | Contents |
 |-----------|-------------|----------|
@@ -197,7 +223,7 @@ The system automatically saves video and IMU data to files after a predefined nu
 Adeep Das, Velu Manohar, Nikhil Sridhar, Muhammad Khan
 
 
-### CHANGES I MADE:
-iLoco. did not work for me, so I removed all iLoco.
+# CHANGES I MADE:
+iLoco. did not work for me, so I removed all iLoco.util etc
 
 change folder name to algo to not cause confusion in the README
