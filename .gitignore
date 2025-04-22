@@ -63,6 +63,9 @@ target/
 *.app
 *.sh
 
+# data
+.npy
+
 dist/
 *.egg-info/
 *build*/
@@ -72,8 +75,8 @@ testclip.h264
 /rob530_final_venv
 /venv
 /.venv
-data/
-/output
+server/data/
+server/output/
 .DS_Store
 
 # Xcode - User files
