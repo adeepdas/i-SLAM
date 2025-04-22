@@ -163,7 +163,7 @@ def read_imu_data(frames):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Extract IMU odometry from IMU data')
-    parser.add_argument('--input', type=str, default='data/imu_data_nik_yellow.npy',
+    parser.add_argument('--input', type=str, default='output/imu_data_test.npy',
                       help='Path to input IMU data file')
     args = parser.parse_args()
 

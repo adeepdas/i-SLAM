@@ -139,9 +139,9 @@ def graph_optimization(imu_data, video_data, mini_batch_size=10):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run GTSAM optimization with IMU and visual odometry')
-    parser.add_argument('--imu', type=str, default='data/imu_data_nik_yellow.npy',
+    parser.add_argument('--imu', type=str, default='output/imu_data_test.npy',
                       help='Path to input IMU data file')
-    parser.add_argument('--video', type=str, default='data/video_data_nik_yellow.npy',
+    parser.add_argument('--video', type=str, default='output/video_data_test.npy',
                       help='Path to input video data file')
     args = parser.parse_args()
 

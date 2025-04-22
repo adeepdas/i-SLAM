@@ -46,7 +46,7 @@ sudo apt update && sudo apt install -y \
     git
 ```
 
-### 3. Miniconda Installation
+### 3. Anaconda Installation
 ```bash
 # Download Miniconda installer
 wget https://repo.anaconda.com/archive/Anaconda3-2024.02-1-Linux-x86_64.sh
@@ -63,7 +63,6 @@ source ~/.bashrc
 
 ### 4. Clone Repository
 
-4. Clone the repository:
 ```bash
 git clone https://github.com/adeepdas/iLoco.git
 cd iLoco
@@ -195,3 +194,9 @@ The system automatically saves video and IMU data to files after a predefined nu
 
 ## Contributors
 Adeep Das, Velu Manohar, Nikhil Sridhar, Muhammad Khan
+
+
+### CHANGES I MADE:
+iLoco. did not work for me, so I removed all iLoco.
+
+change folder name to algo to not cause confusion in the README
