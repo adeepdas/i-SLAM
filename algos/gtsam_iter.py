@@ -1,9 +1,9 @@
 import numpy as np
 import gtsam
 from gtsam import symbol
-from iLoco.visual_odometry import extract_visual_odometry
-from iLoco.imu_integration import read_imu_data
-from iLoco.visualization import animate_trajectory, plot_trajectory
+from visual_odometry import extract_visual_odometry
+from imu_integration import read_imu_data
+from visualization import animate_trajectory, plot_trajectory
 import argparse
 
 def graph_optimization(imu_data, video_data, mini_batch_size=10):

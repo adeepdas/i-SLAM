@@ -12,6 +12,7 @@ trash
 *.log
 .cache
 .vscode
+*.sh
 compile_commands.json
 
 #CMake stuff
@@ -60,6 +61,7 @@ target/
 *.exe
 *.out
 *.app
+*.sh
 
 dist/
 *.egg-info/
@@ -69,7 +71,7 @@ testclip.h264
 #virtual environment
 /rob530_final_venv
 /venv
-
+/.venv
 data/
-
+/output
 .DS_Store

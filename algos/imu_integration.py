@@ -1,6 +1,6 @@
 import numpy as np
-from iLoco.utils import skew
-from iLoco.visualization import animate_trajectory, plot_trajectory
+from utils import skew
+from visualization import animate_trajectory, plot_trajectory
 import argparse
 
 

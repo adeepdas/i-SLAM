@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 import os
 import pickle
-from iLoco.visual_odometry import rotate_frame
+from visual_odometry import rotate_frame
 from scipy.spatial import KDTree  
 
 

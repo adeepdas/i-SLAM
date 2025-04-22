@@ -1,6 +1,6 @@
-import iLoco.orb as orb
-import iLoco.fit_transform3D as fit_transform3D
-from iLoco.visualization import plot_trajectory, animate_trajectory
+import orb as orb
+import fit_transform3D as fit_transform3D
+from visualization import plot_trajectory, animate_trajectory
 import numpy as np
 import cv2
 from typing import List

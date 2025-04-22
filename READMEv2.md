@@ -24,7 +24,13 @@ iLoco is a Visual-Inertial SLAM (Simultaneous Localization and Mapping) system t
 
 ## Installation
 
-### 1. System Dependencies (Ubuntu/Debian)
+### 1. Configure Network in VirtualBox (if using VM)
+1. Open **VirtualBox** settings
+2. Navigate to **Network** settings
+3. Set **Attached to:** `Bridged Adapter` to enable direct network access
+
+
+### 2. System Dependencies (Ubuntu/Debian)
 ```bash
 # Update package list and install dependencies
 sudo apt update && sudo apt install -y \
@@ -39,10 +45,6 @@ sudo apt update && sudo apt install -y \
     wget \
     git
 ```
-### 2. Configure Network in VirtualBox (if using VM)
-1. Open **VirtualBox** settings
-2. Navigate to **Network** settings
-3. Set **Attached to:** `Bridged Adapter` to enable direct network access
 
 ### 3. Miniconda Installation
 ```bash
@@ -67,30 +69,18 @@ git clone https://github.com/adeepdas/iLoco.git
 cd iLoco
 ```
 
-### 5. Create and Setup Conda Environment
-```bash
-conda create -n iLoco -y \
-    python==3.9 \
-    numpy==1.26.4 \
-    conda-forge::gtsam==4.2.0 \
-    conda-forge::matplotlib==3.8.3 \
-    conda-forge::jupyterlab \
-    conda-forge::opencv==4.8.0 \
-    conda-forge::pillow \
-    scipy \
-    pip
-```
 
-### 5b. Or install through pip
+### 5. Or install through pip
+```bash
 conda create -n iLoco -y python==3.9
 conda activate iLoco
 pip install numpy==1.26.4 \
             gtsam==4.2.0 \
             matplotlib==3.8.3 \
-            jupyterlab \
             opencv-python==4.8.0 \
             pillow \
             scipy
+```
 
 ### 6. Activate Conda Environment
 ```bash

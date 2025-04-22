@@ -7,6 +7,7 @@ import threading
 import queue
 from datetime import datetime
 import argparse  # Add this import
+import os
 
 
 
@@ -71,6 +72,8 @@ recorded_count_imu = 0
 file_written_video = False  # To ensure file write happens only once
 file_written_imu = False  # To ensure file write happens only once
 
+OUTPUT_DIR = 'output'
+
 # Add argument parser
 def parse_args():
     parser = argparse.ArgumentParser(description='Video and IMU data collection server')
@@ -84,16 +87,20 @@ def write_video_frames_to_file(name_prefix=None):
         filename = f"video_data_{name_prefix}.npy"
     else:
         filename = f"video_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.npy"
-    np.save(filename, recorded_frames_video)
-    print(f"Video data saved to: {filename}")
+    
+    filepath = os.path.join(OUTPUT_DIR, filename)
+    np.save(filepath, recorded_frames_video)
+    print(f"Video data saved to: {filepath}")
 
 def write_imu_frames_to_file(name_prefix=None):
     if name_prefix:
         filename = f"imu_data_{name_prefix}.npy"
     else:
         filename = f"imu_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.npy"
-    np.save(filename, recorded_frames_imu)
-    print(f"IMU data saved to: {filename}")
+    
+    filepath = os.path.join(OUTPUT_DIR, filename)
+    np.save(filepath, recorded_frames_imu)
+    print(f"IMU data saved to: {filepath}")
 
 def get_local_ip():
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -308,13 +315,17 @@ if __name__ == "__main__":
         print(f"Writing to file with custom name prefix: {args.name}")
     else:
         print("Writing to file with timestamp as name prefix")
+
+    # Create output directory
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    print(f"Output directory: {OUTPUT_DIR}/")
     
     # Get IP address
     ip_address = get_local_ip()
     h264decoder.disable_logging()
     print(f"Server IP address: {ip_address}")
     
-    # Create and start the receive_data thread with filename prefix
+    # Create and start the receive_data thread with filename prefix and output dir
     receive_video_thread = threading.Thread(target=receive_video, args=(HOST, VIDEO_PORT, args.name))
     receive_video_thread.start()
 
