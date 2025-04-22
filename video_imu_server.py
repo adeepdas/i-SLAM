@@ -2,7 +2,7 @@ import socket
 import struct
 import numpy as np
 import cv2
-import h264decoder  # Import the decoder from the cloned repository
+import h264decoder 
 import threading
 import queue
 from datetime import datetime
@@ -267,7 +267,7 @@ def receive_video(host, port):
                             print(f"VIDEO frame {recorded_count_video+1}/{DEBUG_FRAME_COUNTER_VIDEO}")
                             recorded_count_video += 1
 
-                            # When 10 frames are recorded, write them to file in a separate thread
+                            # When DEBUG_FRAME_COUNTER_VIDEO frames are recorded, write them to file in a separate thread
                             if recorded_count_video == DEBUG_FRAME_COUNTER_VIDEO and not file_written_video:
                                 file_written_video = True
                                 threading.Thread(target=write_video_frames_to_file).start()
@@ -282,9 +282,12 @@ def receive_video(host, port):
         cv2.destroyAllWindows()
         print("Connection closed")
 
+
+
 if __name__ == "__main__":
     # Get IP address
     ip_address = get_local_ip()
+    h264decoder.disable_logging() # Disable logging if desired
     print(f"Server IP address: {ip_address}")
     
     # Create and start the receive_data thread
