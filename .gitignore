@@ -65,6 +65,7 @@ target/
 
 # data
 *.npy
+server/output/*.npy
 
 dist/
 *.egg-info/
