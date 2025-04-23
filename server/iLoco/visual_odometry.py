@@ -122,7 +122,7 @@ def extract_visual_odometry(frames: List[dict],
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Extract visual odometry from video data')
-    parser.add_argument('--input', type=str, default='output/video_data_test.npy',
+    parser.add_argument('--input', type=str, default='data/video_data_test.npy',
                       help='Path to input video data file')
     args = parser.parse_args()
 

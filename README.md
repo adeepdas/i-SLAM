@@ -99,6 +99,7 @@ pip install . server/h264decoder/
 
 ## Usage
 
+
 ### Network Requirements
 - The iOS device and server must be connected to the same WiFi network
 - For optimal performance:
@@ -133,6 +134,10 @@ This will create:
    - Recording progress (frames collected)
    - Connection status
    - Data saving confirmation
+
+3. If you would like to test our code with the data that we collected it is liked below:
+  - https://drive.google.com/drive/folders/1IST5OF5nrwEODLp1NMbyN7sl_zUXKcXj?usp=drive_link
+  
 
 ### Data Collection Duration
 - By default, the server records for 60 seconds
