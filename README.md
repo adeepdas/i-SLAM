@@ -217,13 +217,7 @@ The system automatically saves video and IMU data to files after a predefined nu
 
 
 ## License
-[Add your license information here]
+This project is fully open-source. You can find the code, documentation, and setup instructions on our GitHub repository: [\[GitHub link\]](https://github.com/adeepdas/iLoco)
 
 ## Contributors
 Adeep Das, Velu Manohar, Nikhil Sridhar, Muhammad Khan
-
-
-# CHANGES I MADE:
-iLoco. did not work for me, so I removed all iLoco.util etc
-
-change folder name to algo to not cause confusion in the README
